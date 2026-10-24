@@ -55,6 +55,21 @@
             android:textSize="17sp"
             android:textStyle="bold" />
 
+        <!-- Network Health -->
+
+        <TextView
+            android:id="@+id/healthScoreText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:background="#151B23"
+            android:gravity="center"
+            android:padding="24dp"
+            android:text="Network Health: —/100"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
         <!-- Network Metrics -->
 
         <TextView
@@ -120,8 +135,6 @@
             android:text="Upload: — Mbps"
             android:textColor="#FFFFFF"
             android:textSize="17sp" />
-
-        <!-- Network Stability -->
 
         <TextView
             android:id="@+id/stabilityText"
