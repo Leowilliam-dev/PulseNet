@@ -1,16 +1,14 @@
 package com.pulsenet
 
+import android.graphics.Color
 import android.os.Bundle
 import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import java.io.BufferedReader
-import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.concurrent.thread
 import kotlin.math.abs
-import kotlin.math.roundToInt
 
 class MainActivity : AppCompatActivity() {
 
@@ -24,10 +22,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var uploadText: TextView
     private lateinit var stabilityText: TextView
     private lateinit var gamingText: TextView
-    private lateinit var streamingText: TextView
-    private lateinit var videoCallText: TextView
     private lateinit var efootballText: TextView
     private lateinit var codMobileText: TextView
+    private lateinit var streamingText: TextView
+    private lateinit var videoCallText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,10 +41,10 @@ class MainActivity : AppCompatActivity() {
         uploadText = findViewById(R.id.uploadText)
         stabilityText = findViewById(R.id.stabilityText)
         gamingText = findViewById(R.id.gamingText)
-        streamingText = findViewById(R.id.streamingText)
-        videoCallText = findViewById(R.id.videoCallText)
         efootballText = findViewById(R.id.efootballText)
         codMobileText = findViewById(R.id.codMobileText)
+        streamingText = findViewById(R.id.streamingText)
+        videoCallText = findViewById(R.id.videoCallText)
 
         testButton.setOnClickListener {
             runNetworkTest()
@@ -55,74 +53,115 @@ class MainActivity : AppCompatActivity() {
 
     private fun runNetworkTest() {
         testButton.isEnabled = false
-
         statusText.text = "Testing network..."
+
         healthScoreText.text = "Network Health: testing..."
+        healthScoreText.setTextColor(Color.WHITE)
+
         pingText.text = "Ping: testing..."
         jitterText.text = "Jitter: testing..."
         lossText.text = "Packet Loss: testing..."
-        downloadText.text = "Download: waiting..."
-        uploadText.text = "Upload: waiting..."
+        downloadText.text = "Download: testing..."
+        uploadText.text = "Upload: testing..."
         stabilityText.text = "Network Stability: testing..."
         gamingText.text = "Gaming Readiness: testing..."
-        streamingText.text = "Streaming Readiness: waiting..."
-        videoCallText.text = "Video Call Readiness: testing..."
         efootballText.text = "eFootball Readiness: testing..."
         codMobileText.text = "COD Mobile Readiness: testing..."
+        streamingText.text = "Streaming Readiness: testing..."
+        videoCallText.text = "Video Call Readiness: testing..."
 
         thread {
             try {
-                val process = Runtime.getRuntime().exec(
-                    arrayOf("ping", "-c", "10", "-W", "2", "1.1.1.1")
-                )
+                val pingResults = runPingTest()
 
-                val reader = BufferedReader(
-                    InputStreamReader(process.inputStream)
-                )
-
-                val output = StringBuilder()
-                var line: String?
-
-                while (reader.readLine().also { line = it } != null) {
-                    output.append(line).append("\n")
-                }
-
-                process.waitFor()
-
-                val result = output.toString()
-
-                val ping = extractAveragePing(result)
-                val times = extractPingTimes(result)
-                val packetLoss = calculatePacketLoss(result)
-                val jitter = calculateJitter(times)
-
-                val stability =
-                    calculateStability(ping, jitter, packetLoss)
-
-                val gaming =
-                    calculateGamingReadiness(ping, jitter, packetLoss)
-
-                val efootball =
-                    calculateEfootballReadiness(ping, jitter, packetLoss)
-
-                val codMobile =
-                    calculateCodMobileReadiness(ping, jitter, packetLoss)
+                val ping = pingResults.first
+                val jitter = pingResults.second
+                val packetLoss = pingResults.third
 
                 runOnUiThread {
-                    pingText.text =
-                        if (ping != null)
-                            "Ping: %.1f ms".format(ping)
-                        else
-                            "Ping: unavailable"
+                    pingText.text = "Ping: ${formatValue(ping)} ms"
+                    jitterText.text = "Jitter: ${formatValue(jitter)} ms"
+                    lossText.text = "Packet Loss: ${formatValue(packetLoss)} %"
+                }
 
-                    jitterText.text =
-                        if (jitter != null)
-                            "Jitter: %.1f ms".format(jitter)
-                        else
-                            "Jitter: unavailable"
+                val download = runDownloadTest()
 
-                    lossText.text =
-                        "Packet Loss: %.1f%%".format(packetLoss)
+                runOnUiThread {
+                    downloadText.text = "Download: ${formatValue(download)} Mbps"
+                }
+
+                val upload = runUploadTest()
+
+                runOnUiThread {
+                    uploadText.text = "Upload: ${formatValue(upload)} Mbps"
+                }
+
+                val healthScore = calculateNetworkHealthScore(
+                    ping,
+                    jitter,
+                    packetLoss,
+                    download,
+                    upload
+                )
+
+                val healthStatus = when {
+                    healthScore >= 90 -> "Excellent"
+                    healthScore >= 75 -> "Good"
+                    healthScore >= 50 -> "Fair"
+                    else -> "Poor"
+                }
+
+                val healthColor = when {
+                    healthScore >= 90 -> Color.rgb(46, 204, 113)
+                    healthScore >= 75 -> Color.rgb(52, 152, 219)
+                    healthScore >= 50 -> Color.rgb(243, 156, 18)
+                    else -> Color.rgb(231, 76, 60)
+                }
+
+                val stability = calculateStability(
+                    ping,
+                    jitter,
+                    packetLoss
+                )
+
+                val gaming = calculateGamingReadiness(
+                    ping,
+                    jitter,
+                    packetLoss
+                )
+
+                val efootball = calculateEfootballReadiness(
+                    ping,
+                    jitter,
+                    packetLoss
+                )
+
+                val codMobile = calculateCodMobileReadiness(
+                    ping,
+                    jitter,
+                    packetLoss
+                )
+
+                val streaming = calculateStreamingReadiness(
+                    ping,
+                    jitter,
+                    packetLoss,
+                    download,
+                    upload
+                )
+
+                val videoCall = calculateVideoCallReadiness(
+                    ping,
+                    jitter,
+                    packetLoss,
+                    download,
+                    upload
+                )
+
+                runOnUiThread {
+                    healthScoreText.text =
+                        "Network Health: $healthScore/100\n$healthStatus"
+                    healthScoreText.setTextColor(healthColor)
 
                     stabilityText.text =
                         "Network Stability: $stability"
@@ -136,584 +175,325 @@ class MainActivity : AppCompatActivity() {
                     codMobileText.text =
                         "COD Mobile Readiness: $codMobile"
 
-                    statusText.text =
-                        "Testing download speed..."
-
-                    downloadText.text =
-                        "Download: testing..."
-                }
-
-                val downloadSpeed = runDownloadTest()
-
-                runOnUiThread {
-                    downloadText.text =
-                        if (downloadSpeed != null)
-                            "Download: %.2f Mbps".format(downloadSpeed)
-                        else
-                            "Download: unavailable"
-
-                    statusText.text =
-                        "Testing upload speed..."
-
-                    uploadText.text =
-                        "Upload: testing..."
-                }
-
-                val uploadSpeed = runUploadTest()
-
-                val streaming = calculateStreamingReadiness(
-                    ping,
-                    jitter,
-                    packetLoss,
-                    downloadSpeed,
-                    uploadSpeed
-                )
-
-                val videoCall = calculateVideoCallReadiness(
-                    ping,
-                    jitter,
-                    packetLoss,
-                    downloadSpeed,
-                    uploadSpeed
-                )
-
-                val healthScore = calculateNetworkHealthScore(
-                    ping,
-                    jitter,
-                    packetLoss,
-                    downloadSpeed,
-                    uploadSpeed
-                )
-
-                runOnUiThread {
-                    uploadText.text =
-                        if (uploadSpeed != null)
-                            "Upload: %.2f Mbps".format(uploadSpeed)
-                        else
-                            "Upload: unavailable"
-
                     streamingText.text =
                         "Streaming Readiness: $streaming"
 
                     videoCallText.text =
                         "Video Call Readiness: $videoCall"
 
-                    healthScoreText.text =
-                        if (healthScore != null) {
-                            val healthStatus = when {
-                                healthScore >= 90 -> "Excellent"
-                                healthScore >= 75 -> "Good"
-                                healthScore >= 50 -> "Fair"
-                                else -> "Poor"
-                            }
-
-                            "Network Health: $healthScore/100\n$healthStatus"
-                        } else {
-                            "Network Health: unavailable"
-                        }
-
-                    statusText.text =
-                        "Network test complete"
-
+                    statusText.text = "Network test complete"
                     testButton.isEnabled = true
                 }
 
             } catch (e: Exception) {
                 runOnUiThread {
-                    statusText.text = "Test error"
-                    healthScoreText.text =
-                        "Network Health: unavailable"
+                    statusText.text = "Test failed"
+                    healthScoreText.text = "Network Health: unavailable"
+                    healthScoreText.setTextColor(Color.WHITE)
                     testButton.isEnabled = true
                 }
             }
         }
     }
 
-    private fun calculateNetworkHealthScore(
-        ping: Double?,
-        jitter: Double?,
-        packetLoss: Double,
-        download: Double?,
-        upload: Double?
-    ): Int? {
+    private fun runPingTest(): Triple<Double, Double, Double> {
+        val process = Runtime.getRuntime().exec(
+            arrayOf("ping", "-c", "10", "-W", "2", "1.1.1.1")
+        )
 
-        if (
-            ping == null ||
-            jitter == null ||
-            download == null ||
-            upload == null
-        ) {
-            return null
+        val output = process.inputStream.bufferedReader().readText()
+        process.waitFor()
+
+        val times = Regex("time=([0-9.]+)")
+            .findAll(output)
+            .map { it.groupValues[1].toDouble() }
+            .toList()
+
+        val transmitted = Regex("(\\d+) packets transmitted")
+            .find(output)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.toDoubleOrNull()
+            ?: 10.0
+
+        val received = times.size.toDouble()
+
+        val packetLoss =
+            if (transmitted > 0) {
+                ((transmitted - received) / transmitted) * 100.0
+            } else {
+                100.0
+            }
+
+        if (times.isEmpty()) {
+            return Triple(999.0, 999.0, 100.0)
         }
 
+        val averagePing = times.average()
+
+        val jitter =
+            if (times.size > 1) {
+                times.zipWithNext()
+                    .map { abs(it.second - it.first) }
+                    .average()
+            } else {
+                0.0
+            }
+
+        return Triple(
+            averagePing,
+            jitter,
+            packetLoss
+        )
+    }
+
+    private fun runDownloadTest(): Double {
+        val url = URL(
+            "https://speed.cloudflare.com/__down?bytes=10000000"
+        )
+
+        val start = System.currentTimeMillis()
+
+        val connection = url.openConnection() as HttpURLConnection
+        connection.connectTimeout = 10000
+        connection.readTimeout = 20000
+        connection.requestMethod = "GET"
+
+        var totalBytes = 0L
+
+        connection.inputStream.use { input ->
+            val buffer = ByteArray(8192)
+
+            while (true) {
+                val read = input.read(buffer)
+
+                if (read == -1) break
+
+                totalBytes += read
+            }
+        }
+
+        connection.disconnect()
+
+        val elapsedSeconds =
+            (System.currentTimeMillis() - start) / 1000.0
+
+        if (elapsedSeconds <= 0) return 0.0
+
+        return (totalBytes * 8.0) /
+                elapsedSeconds /
+                1_000_000.0
+    }
+
+    private fun runUploadTest(): Double {
+        val url = URL(
+            "https://speed.cloudflare.com/__up"
+        )
+
+        val data = ByteArray(5 * 1024 * 1024)
+
+        val start = System.currentTimeMillis()
+
+        val connection = url.openConnection() as HttpURLConnection
+        connection.connectTimeout = 10000
+        connection.readTimeout = 20000
+        connection.doOutput = true
+        connection.requestMethod = "POST"
+        connection.setRequestProperty(
+            "Content-Type",
+            "application/octet-stream"
+        )
+
+        connection.outputStream.use { output ->
+            output.write(data)
+        }
+
+        connection.responseCode
+
+        connection.disconnect()
+
+        val elapsedSeconds =
+            (System.currentTimeMillis() - start) / 1000.0
+
+        if (elapsedSeconds <= 0) return 0.0
+
+        return (data.size * 8.0) /
+                elapsedSeconds /
+                1_000_000.0
+    }
+
+    private fun calculateNetworkHealthScore(
+        ping: Double,
+        jitter: Double,
+        packetLoss: Double,
+        download: Double,
+        upload: Double
+    ): Int {
+
         val pingScore = when {
-            ping <= 30.0 -> 100.0
-            ping <= 60.0 -> 90.0
-            ping <= 100.0 -> 75.0
-            ping <= 150.0 -> 55.0
-            ping <= 250.0 -> 30.0
-            else -> 10.0
+            ping <= 30 -> 100
+            ping <= 60 -> 90
+            ping <= 100 -> 75
+            ping <= 150 -> 55
+            ping <= 250 -> 30
+            else -> 10
         }
 
         val jitterScore = when {
-            jitter <= 5.0 -> 100.0
-            jitter <= 10.0 -> 90.0
-            jitter <= 15.0 -> 75.0
-            jitter <= 25.0 -> 55.0
-            jitter <= 40.0 -> 30.0
-            else -> 10.0
+            jitter <= 5 -> 100
+            jitter <= 10 -> 90
+            jitter <= 15 -> 75
+            jitter <= 25 -> 55
+            jitter <= 40 -> 30
+            else -> 10
         }
 
-        val packetLossScore = when {
-            packetLoss <= 0.0 -> 100.0
-            packetLoss <= 1.0 -> 90.0
-            packetLoss <= 2.0 -> 75.0
-            packetLoss <= 5.0 -> 40.0
-            else -> 10.0
+        val lossScore = when {
+            packetLoss <= 0 -> 100
+            packetLoss <= 1 -> 90
+            packetLoss <= 2 -> 75
+            packetLoss <= 5 -> 40
+            else -> 10
         }
 
         val downloadScore = when {
-            download >= 50.0 -> 100.0
-            download >= 25.0 -> 90.0
-            download >= 10.0 -> 75.0
-            download >= 5.0 -> 55.0
-            download >= 2.0 -> 30.0
-            else -> 10.0
+            download >= 50 -> 100
+            download >= 25 -> 90
+            download >= 10 -> 75
+            download >= 5 -> 55
+            download >= 2 -> 30
+            else -> 10
         }
 
         val uploadScore = when {
-            upload >= 10.0 -> 100.0
-            upload >= 5.0 -> 90.0
-            upload >= 3.0 -> 75.0
-            upload >= 2.0 -> 55.0
-            upload >= 1.0 -> 30.0
-            else -> 10.0
+            upload >= 10 -> 100
+            upload >= 5 -> 90
+            upload >= 3 -> 75
+            upload >= 2 -> 55
+            upload >= 1 -> 30
+            else -> 10
         }
 
         return (
             pingScore * 0.25 +
-                jitterScore * 0.20 +
-                packetLossScore * 0.20 +
-                downloadScore * 0.20 +
-                uploadScore * 0.15
-            ).roundToInt()
-    }
-
-    private fun calculateVideoCallReadiness(
-        ping: Double?,
-        jitter: Double?,
-        packetLoss: Double,
-        download: Double?,
-        upload: Double?
-    ): String {
-
-        if (
-            ping == null ||
-            jitter == null ||
-            download == null ||
-            upload == null
-        ) {
-            return "Unavailable"
-        }
-
-        return when {
-            packetLoss > 5.0 ||
-                jitter > 40.0 ||
-                download < 2.0 ||
-                upload < 1.0 ||
-                ping > 250.0 ->
-                "Poor"
-
-            packetLoss > 2.0 ||
-                jitter > 25.0 ||
-                download < 5.0 ||
-                upload < 2.0 ||
-                ping > 150.0 ->
-                "Fair"
-
-            packetLoss > 1.0 ||
-                jitter > 15.0 ||
-                download < 10.0 ||
-                upload < 3.0 ||
-                ping > 100.0 ->
-                "Good"
-
-            else ->
-                "Excellent"
-        }
-    }
-
-    private fun calculateCodMobileReadiness(
-        ping: Double?,
-        jitter: Double?,
-        packetLoss: Double
-    ): String {
-
-        if (ping == null || jitter == null) {
-            return "Unavailable"
-        }
-
-        return when {
-            packetLoss > 5.0 ||
-                jitter > 35.0 ||
-                ping > 250.0 ->
-                "Poor"
-
-            packetLoss > 2.0 ||
-                jitter > 20.0 ||
-                ping > 160.0 ->
-                "Fair"
-
-            packetLoss > 1.0 ||
-                jitter > 12.0 ||
-                ping > 90.0 ->
-                "Good"
-
-            else ->
-                "Excellent"
-        }
-    }
-
-    private fun calculateEfootballReadiness(
-        ping: Double?,
-        jitter: Double?,
-        packetLoss: Double
-    ): String {
-
-        if (ping == null || jitter == null) {
-            return "Unavailable"
-        }
-
-        return when {
-            packetLoss > 5.0 ||
-                jitter > 30.0 ||
-                ping > 220.0 ->
-                "Poor"
-
-            packetLoss > 2.0 ||
-                jitter > 20.0 ||
-                ping > 150.0 ->
-                "Fair"
-
-            packetLoss > 1.0 ||
-                jitter > 10.0 ||
-                ping > 80.0 ->
-                "Good"
-
-            else ->
-                "Excellent"
-        }
-    }
-
-    private fun runDownloadTest(): Double? {
-        var connection: HttpURLConnection? = null
-
-        return try {
-            val url = URL(
-                "https://speed.cloudflare.com/__down?bytes=10000000"
-            )
-
-            connection = url.openConnection() as HttpURLConnection
-            connection.connectTimeout = 10000
-            connection.readTimeout = 20000
-            connection.useCaches = false
-
-            connection.setRequestProperty(
-                "Accept-Encoding",
-                "identity"
-            )
-
-            val startTime = System.nanoTime()
-
-            connection.inputStream.use { input ->
-                val buffer = ByteArray(64 * 1024)
-                var totalBytes = 0L
-
-                while (true) {
-                    val bytesRead = input.read(buffer)
-
-                    if (bytesRead == -1) {
-                        break
-                    }
-
-                    totalBytes += bytesRead
-                }
-
-                val elapsedSeconds =
-                    (System.nanoTime() - startTime) /
-                        1_000_000_000.0
-
-                if (
-                    elapsedSeconds <= 0.0 ||
-                    totalBytes <= 0
-                ) {
-                    return null
-                }
-
-                (totalBytes * 8.0) /
-                    elapsedSeconds /
-                    1_000_000.0
-            }
-
-        } catch (e: Exception) {
-            null
-        } finally {
-            connection?.disconnect()
-        }
-    }
-
-    private fun runUploadTest(): Double? {
-        var connection: HttpURLConnection? = null
-
-        return try {
-            val url = URL(
-                "https://speed.cloudflare.com/__up"
-            )
-
-            connection =
-                url.openConnection() as HttpURLConnection
-
-            connection.requestMethod = "POST"
-            connection.doOutput = true
-            connection.connectTimeout = 10000
-            connection.readTimeout = 20000
-            connection.useCaches = false
-
-            connection.setRequestProperty(
-                "Content-Type",
-                "application/octet-stream"
-            )
-
-            val uploadSize = 5 * 1024 * 1024
-
-            connection.setFixedLengthStreamingMode(
-                uploadSize
-            )
-
-            val buffer = ByteArray(64 * 1024)
-
-            val startTime = System.nanoTime()
-
-            connection.outputStream.use { output ->
-                var remaining = uploadSize
-
-                while (remaining > 0) {
-                    val amount =
-                        minOf(buffer.size, remaining)
-
-                    output.write(
-                        buffer,
-                        0,
-                        amount
-                    )
-
-                    remaining -= amount
-                }
-
-                output.flush()
-            }
-
-            val responseCode =
-                connection.responseCode
-
-            val elapsedSeconds =
-                (System.nanoTime() - startTime) /
-                    1_000_000_000.0
-
-            if (
-                responseCode !in 200..299 ||
-                elapsedSeconds <= 0.0
-            ) {
-                null
-            } else {
-                (uploadSize * 8.0) /
-                    elapsedSeconds /
-                    1_000_000.0
-            }
-
-        } catch (e: Exception) {
-            null
-        } finally {
-            connection?.disconnect()
-        }
-    }
-
-    private fun calculateStreamingReadiness(
-        ping: Double?,
-        jitter: Double?,
-        packetLoss: Double,
-        download: Double?,
-        upload: Double?
-    ): String {
-
-        if (
-            ping == null ||
-            jitter == null ||
-            download == null ||
-            upload == null
-        ) {
-            return "Unavailable"
-        }
-
-        return when {
-            packetLoss > 5.0 ||
-                jitter > 40.0 ||
-                download < 3.0 ||
-                upload < 1.0 ->
-                "Poor"
-
-            packetLoss > 2.0 ||
-                jitter > 25.0 ||
-                download < 8.0 ||
-                upload < 2.0 ->
-                "Fair"
-
-            packetLoss > 1.0 ||
-                jitter > 15.0 ||
-                download < 25.0 ||
-                upload < 5.0 ||
-                ping > 150.0 ->
-                "Good"
-
-            else ->
-                "Excellent"
-        }
-    }
-
-    private fun extractAveragePing(
-        output: String
-    ): Double? {
-
-        val match = Regex(
-            """=\s*([0-9.]+)/([0-9.]+)/([0-9.]+)/"""
-        ).find(output)
-
-        return match
-            ?.groupValues
-            ?.get(2)
-            ?.toDoubleOrNull()
-    }
-
-    private fun extractPingTimes(
-        output: String
-    ): List<Double> {
-
-        val times =
-            mutableListOf<Double>()
-
-        val regex = Regex(
-            """time[=<]([0-9.]+)\s*ms"""
-        )
-
-        regex.findAll(output).forEach {
-            it.groupValues[1]
-                .toDoubleOrNull()
-                ?.let { value ->
-                    times.add(value)
-                }
-        }
-
-        return times
-    }
-
-    private fun calculatePacketLoss(
-        output: String
-    ): Double {
-
-        val match = Regex(
-            """(\d+(?:\.\d+)?)%\s*packet loss"""
-        ).find(output)
-
-        return match
-            ?.groupValues
-            ?.get(1)
-            ?.toDoubleOrNull()
-            ?: 100.0
-    }
-
-    private fun calculateJitter(
-        times: List<Double>
-    ): Double? {
-
-        if (times.size < 2) {
-            return null
-        }
-
-        var totalDifference = 0.0
-
-        for (i in 1 until times.size) {
-            totalDifference +=
-                abs(
-                    times[i] -
-                        times[i - 1]
-                )
-        }
-
-        return totalDifference /
-            (times.size - 1)
+            jitterScore * 0.20 +
+            lossScore * 0.20 +
+            downloadScore * 0.20 +
+            uploadScore * 0.15
+        ).toInt()
     }
 
     private fun calculateStability(
-        ping: Double?,
-        jitter: Double?,
+        ping: Double,
+        jitter: Double,
         packetLoss: Double
     ): String {
-
-        if (
-            ping == null ||
-            jitter == null
-        ) {
-            return "Unavailable"
-        }
-
         return when {
-            packetLoss > 5.0 ||
-                jitter > 30.0 ->
-                "Poor"
-
-            packetLoss > 2.0 ||
-                jitter > 15.0 ->
-                "Fair"
-
-            ping > 150.0 ||
-                jitter > 10.0 ->
-                "Good"
-
-            else ->
-                "Excellent"
+            packetLoss > 5 || jitter > 40 || ping > 250 -> "Poor"
+            packetLoss > 2 || jitter > 25 || ping > 150 -> "Fair"
+            packetLoss > 1 || jitter > 15 || ping > 100 -> "Good"
+            else -> "Excellent"
         }
     }
 
     private fun calculateGamingReadiness(
-        ping: Double?,
-        jitter: Double?,
+        ping: Double,
+        jitter: Double,
         packetLoss: Double
     ): String {
-
-        if (
-            ping == null ||
-            jitter == null
-        ) {
-            return "Unavailable"
-        }
-
         return when {
-            packetLoss > 5.0 ||
-                jitter > 30.0 ||
-                ping > 250.0 ->
-                "Poor"
-
-            packetLoss > 2.0 ||
-                jitter > 15.0 ||
-                ping > 150.0 ->
-                "Fair"
-
-            ping > 80.0 ||
-                jitter > 10.0 ->
-                "Good"
-
-            else ->
-                "Excellent"
+            packetLoss > 5 || jitter > 40 || ping > 250 -> "Poor"
+            packetLoss > 2 || jitter > 25 || ping > 150 -> "Fair"
+            packetLoss > 1 || jitter > 15 || ping > 100 -> "Good"
+            else -> "Excellent"
         }
+    }
+
+    private fun calculateEfootballReadiness(
+        ping: Double,
+        jitter: Double,
+        packetLoss: Double
+    ): String {
+        return when {
+            packetLoss > 5 || jitter > 30 || ping > 220 -> "Poor"
+            packetLoss > 2 || jitter > 20 || ping > 150 -> "Fair"
+            packetLoss > 1 || jitter > 10 || ping > 80 -> "Good"
+            else -> "Excellent"
+        }
+    }
+
+    private fun calculateCodMobileReadiness(
+        ping: Double,
+        jitter: Double,
+        packetLoss: Double
+    ): String {
+        return when {
+            packetLoss > 5 || jitter > 35 || ping > 250 -> "Poor"
+            packetLoss > 2 || jitter > 20 || ping > 160 -> "Fair"
+            packetLoss > 1 || jitter > 12 || ping > 90 -> "Good"
+            else -> "Excellent"
+        }
+    }
+
+    private fun calculateStreamingReadiness(
+        ping: Double,
+        jitter: Double,
+        packetLoss: Double,
+        download: Double,
+        upload: Double
+    ): String {
+        return when {
+            packetLoss > 5 ||
+                    jitter > 40 ||
+                    download < 3 ||
+                    upload < 1 -> "Poor"
+
+            packetLoss > 2 ||
+                    jitter > 25 ||
+                    download < 8 ||
+                    upload < 2 -> "Fair"
+
+            packetLoss > 1 ||
+                    jitter > 15 ||
+                    download < 25 ||
+                    upload < 5 ||
+                    ping > 150 -> "Good"
+
+            else -> "Excellent"
+        }
+    }
+
+    private fun calculateVideoCallReadiness(
+        ping: Double,
+        jitter: Double,
+        packetLoss: Double,
+        download: Double,
+        upload: Double
+    ): String {
+        return when {
+            packetLoss > 5 ||
+                    jitter > 40 ||
+                    download < 2 ||
+                    upload < 1 ||
+                    ping > 250 -> "Poor"
+
+            packetLoss > 2 ||
+                    jitter > 25 ||
+                    download < 5 ||
+                    upload < 2 ||
+                    ping > 150 -> "Fair"
+
+            packetLoss > 1 ||
+                    jitter > 15 ||
+                    download < 10 ||
+                    upload < 3 ||
+                    ping > 100 -> "Good"
+
+            else -> "Excellent"
+        }
+    }
+
+    private fun formatValue(value: Double): String {
+        return String.format("%.1f", value)
     }
 }
