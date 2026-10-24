@@ -10,11 +10,13 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.concurrent.thread
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var testButton: Button
     private lateinit var statusText: TextView
+    private lateinit var healthScoreText: TextView
     private lateinit var pingText: TextView
     private lateinit var jitterText: TextView
     private lateinit var lossText: TextView
@@ -33,6 +35,7 @@ class MainActivity : AppCompatActivity() {
 
         testButton = findViewById(R.id.testButton)
         statusText = findViewById(R.id.statusText)
+        healthScoreText = findViewById(R.id.healthScoreText)
         pingText = findViewById(R.id.pingText)
         jitterText = findViewById(R.id.jitterText)
         lossText = findViewById(R.id.lossText)
@@ -54,6 +57,7 @@ class MainActivity : AppCompatActivity() {
         testButton.isEnabled = false
 
         statusText.text = "Testing network..."
+        healthScoreText.text = "Network Health: testing..."
         pingText.text = "Ping: testing..."
         jitterText.text = "Jitter: testing..."
         lossText.text = "Packet Loss: testing..."
@@ -173,6 +177,14 @@ class MainActivity : AppCompatActivity() {
                     uploadSpeed
                 )
 
+                val healthScore = calculateNetworkHealthScore(
+                    ping,
+                    jitter,
+                    packetLoss,
+                    downloadSpeed,
+                    uploadSpeed
+                )
+
                 runOnUiThread {
                     uploadText.text =
                         if (uploadSpeed != null)
@@ -186,6 +198,12 @@ class MainActivity : AppCompatActivity() {
                     videoCallText.text =
                         "Video Call Readiness: $videoCall"
 
+                    healthScoreText.text =
+                        if (healthScore != null)
+                            "Network Health: $healthScore/100"
+                        else
+                            "Network Health: unavailable"
+
                     statusText.text =
                         "Network test complete"
 
@@ -195,10 +213,81 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 runOnUiThread {
                     statusText.text = "Test error"
+                    healthScoreText.text = "Network Health: unavailable"
                     testButton.isEnabled = true
                 }
             }
         }
+    }
+
+    private fun calculateNetworkHealthScore(
+        ping: Double?,
+        jitter: Double?,
+        packetLoss: Double,
+        download: Double?,
+        upload: Double?
+    ): Int? {
+
+        if (
+            ping == null ||
+            jitter == null ||
+            download == null ||
+            upload == null
+        ) {
+            return null
+        }
+
+        val pingScore = when {
+            ping <= 30.0 -> 100.0
+            ping <= 60.0 -> 90.0
+            ping <= 100.0 -> 75.0
+            ping <= 150.0 -> 55.0
+            ping <= 250.0 -> 30.0
+            else -> 10.0
+        }
+
+        val jitterScore = when {
+            jitter <= 5.0 -> 100.0
+            jitter <= 10.0 -> 90.0
+            jitter <= 15.0 -> 75.0
+            jitter <= 25.0 -> 55.0
+            jitter <= 40.0 -> 30.0
+            else -> 10.0
+        }
+
+        val packetLossScore = when {
+            packetLoss <= 0.0 -> 100.0
+            packetLoss <= 1.0 -> 90.0
+            packetLoss <= 2.0 -> 75.0
+            packetLoss <= 5.0 -> 40.0
+            else -> 10.0
+        }
+
+        val downloadScore = when {
+            download >= 50.0 -> 100.0
+            download >= 25.0 -> 90.0
+            download >= 10.0 -> 75.0
+            download >= 5.0 -> 55.0
+            download >= 2.0 -> 30.0
+            else -> 10.0
+        }
+
+        val uploadScore = when {
+            upload >= 10.0 -> 100.0
+            upload >= 5.0 -> 90.0
+            upload >= 3.0 -> 75.0
+            upload >= 2.0 -> 55.0
+            upload >= 1.0 -> 30.0
+            else -> 10.0
+        }
+
+        return (
+            pingScore * 0.25 +
+                jitterScore * 0.20 +
+                packetLossScore * 0.20 +
+                downloadScore * 0.20 +
+                uploadScore * 0.15
+            ).roundToInt()
     }
 
     private fun calculateVideoCallReadiness(
