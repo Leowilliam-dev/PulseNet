@@ -1,40 +1,64 @@
 <?xml version="1.0" encoding="utf-8"?>
-
-<ScrollView
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0B0F14"
+    android:background="@drawable/bg_app_gradient"
     android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:animateLayoutChanges="true"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:padding="22dp">
 
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="PulseNet"
-            android:textColor="#FFFFFF"
-            android:textSize="32sp"
-            android:textStyle="bold" />
+            android:layout_marginTop="10dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Network Quality Analyzer"
-            android:textColor="#8F9BAB"
-            android:textSize="15sp" />
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="PulseNet"
+                    android:textColor="#F5F9FF"
+                    android:textSize="30sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Network quality analyzer"
+                    android:textColor="#A4B2C7"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:background="@drawable/bg_status_dot" />
+        </LinearLayout>
 
         <Button
             android:id="@+id/testButton"
             android:layout_width="match_parent"
-            android:layout_height="58dp"
-            android:layout_marginTop="24dp"
+            android:layout_height="60dp"
+            android:layout_marginTop="26dp"
+            android:background="@drawable/bg_primary_button"
+            android:elevation="8dp"
+            android:stateListAnimator="@null"
             android:text="TEST NETWORK"
+            android:textAllCaps="true"
+            android:textColor="#F8FBFF"
             android:textSize="15sp"
             android:textStyle="bold" />
 
@@ -45,109 +69,130 @@
             android:layout_marginTop="18dp"
             android:gravity="center"
             android:text="Ready to test"
-            android:textColor="#FFFFFF"
-            android:textSize="17sp"
+            android:textColor="#E8F1FF"
+            android:textSize="16sp"
             android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/networkTypeText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:background="#151B23"
-            android:gravity="center"
-            android:padding="18dp"
-            android:text="Network Type: Unknown"
-            android:textColor="#FFFFFF"
-            android:textSize="17sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/healthScoreText"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
-            android:background="#151B23"
-            android:gravity="center"
-            android:padding="24dp"
-            android:text="Network Health: —/100"
-            android:textColor="#FFFFFF"
-            android:textSize="24sp"
-            android:textStyle="bold" />
+            android:background="@drawable/bg_panel"
+            android:orientation="vertical"
+            android:padding="18dp">
+
+            <TextView
+                android:id="@+id/networkTypeText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="Network Type: Unknown"
+                android:textColor="#F4F8FF"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:background="@drawable/bg_panel_glow"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <TextView
+                android:id="@+id/healthScoreText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="Network Health: —/100"
+                android:textColor="#FFFFFF"
+                android:textSize="25sp"
+                android:textStyle="bold" />
+        </LinearLayout>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="28dp"
+            android:letterSpacing="0.12"
             android:text="NETWORK METRICS"
-            android:textColor="#8F9BAB"
-            android:textSize="13sp"
+            android:textColor="#8EA0B9"
+            android:textSize="12sp"
             android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/pingText"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
-            android:background="#151B23"
-            android:padding="18dp"
-            android:text="Ping: — ms"
-            android:textColor="#FFFFFF"
-            android:textSize="17sp" />
+            android:background="@drawable/bg_panel"
+            android:orientation="vertical"
+            android:padding="8dp">
 
-        <TextView
-            android:id="@+id/jitterText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:background="#151B23"
-            android:padding="18dp"
-            android:text="Jitter: — ms"
-            android:textColor="#FFFFFF"
-            android:textSize="17sp" />
+            <TextView
+                android:id="@+id/pingText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#111A26"
+                android:padding="16dp"
+                android:text="Ping: — ms"
+                android:textColor="#F5F9FF"
+                android:textSize="16sp" />
 
-        <TextView
-            android:id="@+id/lossText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:background="#151B23"
-            android:padding="18dp"
-            android:text="Packet Loss: — %"
-            android:textColor="#FFFFFF"
-            android:textSize="17sp" />
+            <TextView
+                android:id="@+id/jitterText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="#111A26"
+                android:padding="16dp"
+                android:text="Jitter: — ms"
+                android:textColor="#F5F9FF"
+                android:textSize="16sp" />
 
-        <TextView
-            android:id="@+id/downloadText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:background="#151B23"
-            android:padding="18dp"
-            android:text="Download: — Mbps"
-            android:textColor="#FFFFFF"
-            android:textSize="17sp" />
+            <TextView
+                android:id="@+id/lossText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="#111A26"
+                android:padding="16dp"
+                android:text="Packet Loss: — %"
+                android:textColor="#F5F9FF"
+                android:textSize="16sp" />
 
-        <TextView
-            android:id="@+id/uploadText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:background="#151B23"
-            android:padding="18dp"
-            android:text="Upload: — Mbps"
-            android:textColor="#FFFFFF"
-            android:textSize="17sp" />
+            <TextView
+                android:id="@+id/downloadText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="#111A26"
+                android:padding="16dp"
+                android:text="Download: — Mbps"
+                android:textColor="#F5F9FF"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/uploadText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="#111A26"
+                android:padding="16dp"
+                android:text="Upload: — Mbps"
+                android:textColor="#F5F9FF"
+                android:textSize="16sp" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/stabilityText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
-            android:background="#151B23"
+            android:background="@drawable/bg_panel"
             android:padding="18dp"
             android:text="Network Stability: —"
-            android:textColor="#FFFFFF"
+            android:textColor="#F5F9FF"
             android:textSize="17sp"
             android:textStyle="bold" />
 
@@ -155,83 +200,102 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="30dp"
+            android:letterSpacing="0.12"
             android:text="GAMING"
-            android:textColor="#8F9BAB"
-            android:textSize="13sp"
+            android:textColor="#8EA0B9"
+            android:textSize="12sp"
             android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/gamingText"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
-            android:background="#151B23"
-            android:padding="18dp"
-            android:text="Gaming Readiness: —"
-            android:textColor="#FFFFFF"
-            android:textSize="17sp"
-            android:textStyle="bold" />
+            android:background="@drawable/bg_panel"
+            android:orientation="vertical"
+            android:padding="8dp">
 
-        <TextView
-            android:id="@+id/efootballText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:background="#151B23"
-            android:padding="18dp"
-            android:text="eFootball Readiness: —"
-            android:textColor="#FFFFFF"
-            android:textSize="17sp" />
+            <TextView
+                android:id="@+id/gamingText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#111A26"
+                android:padding="16dp"
+                android:text="Gaming Readiness: —"
+                android:textColor="#F5F9FF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/codMobileText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:background="#151B23"
-            android:padding="18dp"
-            android:text="COD Mobile Readiness: —"
-            android:textColor="#FFFFFF"
-            android:textSize="17sp" />
+            <TextView
+                android:id="@+id/efootballText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="#111A26"
+                android:padding="16dp"
+                android:text="eFootball Readiness: —"
+                android:textColor="#F5F9FF"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/codMobileText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="#111A26"
+                android:padding="16dp"
+                android:text="COD Mobile Readiness: —"
+                android:textColor="#F5F9FF"
+                android:textSize="16sp" />
+        </LinearLayout>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="30dp"
+            android:letterSpacing="0.12"
             android:text="STREAMING &amp; CALLS"
-            android:textColor="#8F9BAB"
-            android:textSize="13sp"
+            android:textColor="#8EA0B9"
+            android:textSize="12sp"
             android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/streamingText"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
-            android:background="#151B23"
-            android:padding="18dp"
-            android:text="Streaming Readiness: —"
-            android:textColor="#FFFFFF"
-            android:textSize="17sp" />
+            android:background="@drawable/bg_panel"
+            android:orientation="vertical"
+            android:padding="8dp">
 
-        <TextView
-            android:id="@+id/videoCallText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:background="#151B23"
-            android:padding="18dp"
-            android:text="Video Call Readiness: —"
-            android:textColor="#FFFFFF"
-            android:textSize="17sp" />
+            <TextView
+                android:id="@+id/streamingText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#111A26"
+                android:padding="16dp"
+                android:text="Streaming Readiness: —"
+                android:textColor="#F5F9FF"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/videoCallText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="#111A26"
+                android:padding="16dp"
+                android:text="Video Call Readiness: —"
+                android:textColor="#F5F9FF"
+                android:textSize="16sp" />
+        </LinearLayout>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="32dp"
+            android:letterSpacing="0.12"
             android:text="TEST HISTORY"
-            android:textColor="#8F9BAB"
-            android:textSize="13sp"
+            android:textColor="#8EA0B9"
+            android:textSize="12sp"
             android:textStyle="bold" />
 
         <TextView
@@ -240,10 +304,10 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
             android:layout_marginBottom="24dp"
-            android:background="#151B23"
+            android:background="@drawable/bg_panel"
             android:padding="18dp"
             android:text="No test history yet"
-            android:textColor="#FFFFFF"
+            android:textColor="#F5F9FF"
             android:textSize="15sp" />
 
     </LinearLayout>

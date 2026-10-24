@@ -1,11 +1,15 @@
 package com.pulsenet
 
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Color
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
+import android.view.View
+import android.view.animation.DecelerateInterpolator
 import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -67,14 +71,73 @@ class MainActivity : AppCompatActivity() {
         videoCallText = findViewById(R.id.videoCallText)
         historyText = findViewById(R.id.historyText)
 
-        networkTypeText.text =
-            "Network Type: ${getNetworkType()}"
+        networkTypeText.text = "Network Type: ${getNetworkType()}"
 
         loadTestHistory()
+        animateEntrance()
 
         testButton.setOnClickListener {
+            animatePress(testButton)
             runNetworkTest()
         }
+    }
+
+    private fun animateEntrance() {
+        val views = listOf(
+            testButton,
+            statusText,
+            networkTypeText,
+            healthScoreText,
+            pingText,
+            jitterText,
+            lossText,
+            downloadText,
+            uploadText,
+            stabilityText,
+            gamingText,
+            efootballText,
+            codMobileText,
+            streamingText,
+            videoCallText,
+            historyText
+        )
+
+        views.forEachIndexed { index, view ->
+            view.alpha = 0f
+            view.translationY = 26f
+            view.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setDuration(450)
+                .setStartDelay((index * 50L))
+                .setInterpolator(DecelerateInterpolator())
+                .start()
+        }
+    }
+
+    private fun animatePress(view: View) {
+        val scaleX = ObjectAnimator.ofFloat(view, View.SCALE_X, 1f, 0.96f, 1f)
+        val scaleY = ObjectAnimator.ofFloat(view, View.SCALE_Y, 1f, 0.96f, 1f)
+        val animatorSet = AnimatorSet()
+        animatorSet.playTogether(scaleX, scaleY)
+        animatorSet.duration = 220
+        animatorSet.interpolator = DecelerateInterpolator()
+        animatorSet.start()
+    }
+
+    private fun animateMetricCard(view: View) {
+        view.animate()
+            .scaleX(1.02f)
+            .scaleY(1.02f)
+            .setDuration(150)
+            .withEndAction {
+                view.animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(200)
+                    .start()
+            }
+            .start()
     }
 
     private fun getNetworkType(): String {
@@ -84,22 +147,14 @@ class MainActivity : AppCompatActivity() {
         val network = connectivityManager.activeNetwork
             ?: return "Unknown"
 
-        val capabilities =
-            connectivityManager.getNetworkCapabilities(network)
-                ?: return "Unknown"
+        val capabilities = connectivityManager.getNetworkCapabilities(network)
+            ?: return "Unknown"
 
         return when {
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ->
-                "Wi-Fi"
-
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ->
-                "Mobile Data"
-
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) ->
-                "Ethernet"
-
-            else ->
-                "Unknown"
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "Wi-Fi"
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "Mobile Data"
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "Ethernet"
+            else -> "Unknown"
         }
     }
 
@@ -107,12 +162,8 @@ class MainActivity : AppCompatActivity() {
         testButton.isEnabled = false
         statusText.text = "Testing network..."
 
-        networkTypeText.text =
-            "Network Type: ${getNetworkType()}"
-
-        healthScoreText.text =
-            "Network Health: testing..."
-
+        networkTypeText.text = "Network Type: ${getNetworkType()}"
+        healthScoreText.text = "Network Health: testing..."
         healthScoreText.setTextColor(Color.WHITE)
 
         pingText.text = "Ping: testing..."
@@ -130,45 +181,32 @@ class MainActivity : AppCompatActivity() {
         thread {
             try {
                 val pingResults = runPingTest()
-
                 val ping = pingResults.first
                 val jitter = pingResults.second
                 val packetLoss = pingResults.third
 
                 runOnUiThread {
-                    pingText.text =
-                        "Ping: ${formatValue(ping)} ms"
-
-                    jitterText.text =
-                        "Jitter: ${formatValue(jitter)} ms"
-
-                    lossText.text =
-                        "Packet Loss: ${formatValue(packetLoss)} %"
+                    pingText.text = "Ping: ${formatValue(ping)} ms"
+                    jitterText.text = "Jitter: ${formatValue(jitter)} ms"
+                    lossText.text = "Packet Loss: ${formatValue(packetLoss)} %"
+                    animateMetricCard(pingText)
+                    animateMetricCard(jitterText)
+                    animateMetricCard(lossText)
                 }
 
                 val download = runDownloadTest()
-
                 runOnUiThread {
-                    downloadText.text =
-                        "Download: ${formatValue(download)} Mbps"
+                    downloadText.text = "Download: ${formatValue(download)} Mbps"
+                    animateMetricCard(downloadText)
                 }
 
                 val upload = runUploadTest()
-
                 runOnUiThread {
-                    uploadText.text =
-                        "Upload: ${formatValue(upload)} Mbps"
+                    uploadText.text = "Upload: ${formatValue(upload)} Mbps"
+                    animateMetricCard(uploadText)
                 }
 
-                val healthScore =
-                    calculateNetworkHealthScore(
-                        ping,
-                        jitter,
-                        packetLoss,
-                        download,
-                        upload
-                    )
-
+                val healthScore = calculateNetworkHealthScore(ping, jitter, packetLoss, download, upload)
                 val healthStatus = when {
                     healthScore >= 90 -> "Excellent"
                     healthScore >= 75 -> "Good"
@@ -177,64 +215,18 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 val healthColor = when {
-                    healthScore >= 90 ->
-                        Color.rgb(46, 204, 113)
-
-                    healthScore >= 75 ->
-                        Color.rgb(52, 152, 219)
-
-                    healthScore >= 50 ->
-                        Color.rgb(243, 156, 18)
-
-                    else ->
-                        Color.rgb(231, 76, 60)
+                    healthScore >= 90 -> Color.rgb(46, 204, 113)
+                    healthScore >= 75 -> Color.rgb(52, 152, 219)
+                    healthScore >= 50 -> Color.rgb(243, 156, 18)
+                    else -> Color.rgb(231, 76, 60)
                 }
 
-                val stability =
-                    calculateStability(
-                        ping,
-                        jitter,
-                        packetLoss
-                    )
-
-                val gaming =
-                    calculateGamingReadiness(
-                        ping,
-                        jitter,
-                        packetLoss
-                    )
-
-                val efootball =
-                    calculateEfootballReadiness(
-                        ping,
-                        jitter,
-                        packetLoss
-                    )
-
-                val codMobile =
-                    calculateCodMobileReadiness(
-                        ping,
-                        jitter,
-                        packetLoss
-                    )
-
-                val streaming =
-                    calculateStreamingReadiness(
-                        ping,
-                        jitter,
-                        packetLoss,
-                        download,
-                        upload
-                    )
-
-                val videoCall =
-                    calculateVideoCallReadiness(
-                        ping,
-                        jitter,
-                        packetLoss,
-                        download,
-                        upload
-                    )
+                val stability = calculateStability(ping, jitter, packetLoss)
+                val gaming = calculateGamingReadiness(ping, jitter, packetLoss)
+                val efootball = calculateEfootballReadiness(ping, jitter, packetLoss)
+                val codMobile = calculateCodMobileReadiness(ping, jitter, packetLoss)
+                val streaming = calculateStreamingReadiness(ping, jitter, packetLoss, download, upload)
+                val videoCall = calculateVideoCallReadiness(ping, jitter, packetLoss, download, upload)
 
                 saveTestHistory(
                     healthScore = healthScore,
@@ -247,49 +239,32 @@ class MainActivity : AppCompatActivity() {
                 )
 
                 runOnUiThread {
-                    networkTypeText.text =
-                        "Network Type: ${getNetworkType()}"
-
-                    healthScoreText.text =
-                        "Network Health: $healthScore/100\n$healthStatus"
-
+                    networkTypeText.text = "Network Type: ${getNetworkType()}"
+                    healthScoreText.text = "Network Health: $healthScore/100\n$healthStatus"
                     healthScoreText.setTextColor(healthColor)
-
-                    stabilityText.text =
-                        "Network Stability: $stability"
-
-                    gamingText.text =
-                        "Gaming Readiness: $gaming"
-
-                    efootballText.text =
-                        "eFootball Readiness: $efootball"
-
-                    codMobileText.text =
-                        "COD Mobile Readiness: $codMobile"
-
-                    streamingText.text =
-                        "Streaming Readiness: $streaming"
-
-                    videoCallText.text =
-                        "Video Call Readiness: $videoCall"
-
-                    statusText.text =
-                        "Network test complete"
-
+                    stabilityText.text = "Network Stability: $stability"
+                    gamingText.text = "Gaming Readiness: $gaming"
+                    efootballText.text = "eFootball Readiness: $efootball"
+                    codMobileText.text = "COD Mobile Readiness: $codMobile"
+                    streamingText.text = "Streaming Readiness: $streaming"
+                    videoCallText.text = "Video Call Readiness: $videoCall"
+                    statusText.text = "Network test complete"
                     loadTestHistory()
-
+                    animateMetricCard(healthScoreText)
+                    animateMetricCard(stabilityText)
+                    animateMetricCard(gamingText)
+                    animateMetricCard(efootballText)
+                    animateMetricCard(codMobileText)
+                    animateMetricCard(streamingText)
+                    animateMetricCard(videoCallText)
                     testButton.isEnabled = true
                 }
 
             } catch (e: Exception) {
                 runOnUiThread {
                     statusText.text = "Test failed"
-
-                    healthScoreText.text =
-                        "Network Health: unavailable"
-
+                    healthScoreText.text = "Network Health: unavailable"
                     healthScoreText.setTextColor(Color.WHITE)
-
                     testButton.isEnabled = true
                 }
             }
@@ -305,9 +280,7 @@ class MainActivity : AppCompatActivity() {
         upload: Double,
         networkType: String
     ) {
-        val oldHistory =
-            historyPreferences.getString(historyKey, "[]")
-                ?: "[]"
+        val oldHistory = historyPreferences.getString(historyKey, "[]") ?: "[]"
 
         val history = try {
             JSONArray(oldHistory)
@@ -327,7 +300,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         val newHistory = JSONArray()
-
         newHistory.put(newResult)
 
         for (i in 0 until minOf(history.length(), maxHistoryItems - 1)) {
@@ -340,9 +312,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadTestHistory() {
-        val savedHistory =
-            historyPreferences.getString(historyKey, "[]")
-                ?: "[]"
+        val savedHistory = historyPreferences.getString(historyKey, "[]") ?: "[]"
 
         val history = try {
             JSONArray(savedHistory)
@@ -359,40 +329,20 @@ class MainActivity : AppCompatActivity() {
 
         for (i in 0 until history.length()) {
             val result = history.getJSONObject(i)
+            val healthScore = result.optInt("healthScore", 0)
+            val ping = result.optDouble("ping", 0.0)
+            val jitter = result.optDouble("jitter", 0.0)
+            val packetLoss = result.optDouble("packetLoss", 0.0)
+            val download = result.optDouble("download", 0.0)
+            val upload = result.optDouble("upload", 0.0)
+            val networkType = result.optString("networkType", "Unknown")
+            val timestamp = result.optLong("timestamp", 0L)
 
-            val healthScore =
-                result.optInt("healthScore", 0)
-
-            val ping =
-                result.optDouble("ping", 0.0)
-
-            val jitter =
-                result.optDouble("jitter", 0.0)
-
-            val packetLoss =
-                result.optDouble("packetLoss", 0.0)
-
-            val download =
-                result.optDouble("download", 0.0)
-
-            val upload =
-                result.optDouble("upload", 0.0)
-
-            val networkType =
-                result.optString("networkType", "Unknown")
-
-            val timestamp =
-                result.optLong("timestamp", 0L)
-
-            val date =
-                if (timestamp > 0) {
-                    SimpleDateFormat(
-                        "dd MMM yyyy • HH:mm",
-                        Locale.getDefault()
-                    ).format(Date(timestamp))
-                } else {
-                    "Unknown time"
-                }
+            val date = if (timestamp > 0) {
+                SimpleDateFormat("dd MMM yyyy • HH:mm", Locale.getDefault()).format(Date(timestamp))
+            } else {
+                "Unknown time"
+            }
 
             val healthStatus = when {
                 healthScore >= 90 -> "Excellent"
@@ -431,76 +381,45 @@ class MainActivity : AppCompatActivity() {
             )
         )
 
-        val output =
-            process.inputStream.bufferedReader().readText()
-
+        val output = process.inputStream.bufferedReader().readText()
         process.waitFor()
 
-        val times =
-            Regex("time=([0-9.]+)")
-                .findAll(output)
-                .map {
-                    it.groupValues[1].toDouble()
-                }
-                .toList()
+        val times = Regex("time=([0-9.]+)")
+            .findAll(output)
+            .map { it.groupValues[1].toDouble() }
+            .toList()
 
-        val transmitted =
-            Regex("(\\d+) packets transmitted")
-                .find(output)
-                ?.groupValues
-                ?.getOrNull(1)
-                ?.toDoubleOrNull()
-                ?: 10.0
+        val transmitted = Regex("(\\d+) packets transmitted")
+            .find(output)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.toDoubleOrNull() ?: 10.0
 
-        val received =
-            times.size.toDouble()
-
-        val packetLoss =
-            if (transmitted > 0) {
-                ((transmitted - received) / transmitted) * 100.0
-            } else {
-                100.0
-            }
-
-        if (times.isEmpty()) {
-            return Triple(
-                999.0,
-                999.0,
-                100.0
-            )
+        val received = times.size.toDouble()
+        val packetLoss = if (transmitted > 0) {
+            ((transmitted - received) / transmitted) * 100.0
+        } else {
+            100.0
         }
 
-        val averagePing =
-            times.average()
+        if (times.isEmpty()) {
+            return Triple(999.0, 999.0, 100.0)
+        }
 
-        val jitter =
-            if (times.size > 1) {
-                times.zipWithNext()
-                    .map {
-                        abs(it.second - it.first)
-                    }
-                    .average()
-            } else {
-                0.0
-            }
+        val averagePing = times.average()
+        val jitter = if (times.size > 1) {
+            times.zipWithNext().map { abs(it.second - it.first) }.average()
+        } else {
+            0.0
+        }
 
-        return Triple(
-            averagePing,
-            jitter,
-            packetLoss
-        )
+        return Triple(averagePing, jitter, packetLoss)
     }
 
     private fun runDownloadTest(): Double {
-        val url = URL(
-            "https://speed.cloudflare.com/__down?bytes=10000000"
-        )
-
-        val start =
-            System.currentTimeMillis()
-
-        val connection =
-            url.openConnection() as HttpURLConnection
+        val url = URL("https://speed.cloudflare.com/__down?bytes=10000000")
+        val start = System.currentTimeMillis()
+        val connection = url.openConnection() as HttpURLConnection
 
         connection.connectTimeout = 10000
         connection.readTimeout = 20000
@@ -510,72 +429,41 @@ class MainActivity : AppCompatActivity() {
 
         connection.inputStream.use { input ->
             val buffer = ByteArray(8192)
-
             while (true) {
                 val read = input.read(buffer)
-
                 if (read == -1) break
-
                 totalBytes += read
             }
         }
 
         connection.disconnect()
 
-        val elapsedSeconds =
-            (System.currentTimeMillis() - start) / 1000.0
+        val elapsedSeconds = (System.currentTimeMillis() - start) / 1000.0
+        if (elapsedSeconds <= 0) return 0.0
 
-        if (elapsedSeconds <= 0) {
-            return 0.0
-        }
-
-        return (totalBytes * 8.0) /
-                elapsedSeconds /
-                1_000_000.0
+        return (totalBytes * 8.0) / elapsedSeconds / 1_000_000.0
     }
 
     private fun runUploadTest(): Double {
-        val url = URL(
-            "https://speed.cloudflare.com/__up"
-        )
-
-        val data =
-            ByteArray(5 * 1024 * 1024)
-
-        val start =
-            System.currentTimeMillis()
-
-        val connection =
-            url.openConnection() as HttpURLConnection
+        val url = URL("https://speed.cloudflare.com/__up")
+        val data = ByteArray(5 * 1024 * 1024)
+        val start = System.currentTimeMillis()
+        val connection = url.openConnection() as HttpURLConnection
 
         connection.connectTimeout = 10000
         connection.readTimeout = 20000
         connection.doOutput = true
         connection.requestMethod = "POST"
+        connection.setRequestProperty("Content-Type", "application/octet-stream")
 
-        connection.setRequestProperty(
-            "Content-Type",
-            "application/octet-stream"
-        )
-
-        connection.outputStream.use { output ->
-            output.write(data)
-        }
-
+        connection.outputStream.use { output -> output.write(data) }
         connection.responseCode
-
         connection.disconnect()
 
-        val elapsedSeconds =
-            (System.currentTimeMillis() - start) / 1000.0
+        val elapsedSeconds = (System.currentTimeMillis() - start) / 1000.0
+        if (elapsedSeconds <= 0) return 0.0
 
-        if (elapsedSeconds <= 0) {
-            return 0.0
-        }
-
-        return (data.size * 8.0) /
-                elapsedSeconds /
-                1_000_000.0
+        return (data.size * 8.0) / elapsedSeconds / 1_000_000.0
     }
 
     private fun calculateNetworkHealthScore(
@@ -632,11 +520,11 @@ class MainActivity : AppCompatActivity() {
 
         return (
             pingScore * 0.25 +
-            jitterScore * 0.20 +
-            lossScore * 0.20 +
-            downloadScore * 0.20 +
-            uploadScore * 0.15
-        ).toInt()
+                jitterScore * 0.20 +
+                lossScore * 0.20 +
+                downloadScore * 0.20 +
+                uploadScore * 0.15
+            ).toInt()
     }
 
     private fun calculateStability(
@@ -645,18 +533,9 @@ class MainActivity : AppCompatActivity() {
         packetLoss: Double
     ): String {
         return when {
-            packetLoss > 5 ||
-                    jitter > 40 ||
-                    ping > 250 -> "Poor"
-
-            packetLoss > 2 ||
-                    jitter > 25 ||
-                    ping > 150 -> "Fair"
-
-            packetLoss > 1 ||
-                    jitter > 15 ||
-                    ping > 100 -> "Good"
-
+            packetLoss > 5 || jitter > 40 || ping > 250 -> "Poor"
+            packetLoss > 2 || jitter > 25 || ping > 150 -> "Fair"
+            packetLoss > 1 || jitter > 15 || ping > 100 -> "Good"
             else -> "Excellent"
         }
     }
@@ -667,18 +546,9 @@ class MainActivity : AppCompatActivity() {
         packetLoss: Double
     ): String {
         return when {
-            packetLoss > 5 ||
-                    jitter > 40 ||
-                    ping > 250 -> "Poor"
-
-            packetLoss > 2 ||
-                    jitter > 25 ||
-                    ping > 150 -> "Fair"
-
-            packetLoss > 1 ||
-                    jitter > 15 ||
-                    ping > 100 -> "Good"
-
+            packetLoss > 5 || jitter > 40 || ping > 250 -> "Poor"
+            packetLoss > 2 || jitter > 25 || ping > 150 -> "Fair"
+            packetLoss > 1 || jitter > 15 || ping > 100 -> "Good"
             else -> "Excellent"
         }
     }
@@ -689,18 +559,9 @@ class MainActivity : AppCompatActivity() {
         packetLoss: Double
     ): String {
         return when {
-            packetLoss > 5 ||
-                    jitter > 30 ||
-                    ping > 220 -> "Poor"
-
-            packetLoss > 2 ||
-                    jitter > 20 ||
-                    ping > 150 -> "Fair"
-
-            packetLoss > 1 ||
-                    jitter > 10 ||
-                    ping > 80 -> "Good"
-
+            packetLoss > 5 || jitter > 30 || ping > 220 -> "Poor"
+            packetLoss > 2 || jitter > 20 || ping > 150 -> "Fair"
+            packetLoss > 1 || jitter > 10 || ping > 80 -> "Good"
             else -> "Excellent"
         }
     }
@@ -711,18 +572,9 @@ class MainActivity : AppCompatActivity() {
         packetLoss: Double
     ): String {
         return when {
-            packetLoss > 5 ||
-                    jitter > 35 ||
-                    ping > 250 -> "Poor"
-
-            packetLoss > 2 ||
-                    jitter > 20 ||
-                    ping > 160 -> "Fair"
-
-            packetLoss > 1 ||
-                    jitter > 12 ||
-                    ping > 90 -> "Good"
-
+            packetLoss > 5 || jitter > 35 || ping > 250 -> "Poor"
+            packetLoss > 2 || jitter > 20 || ping > 160 -> "Fair"
+            packetLoss > 1 || jitter > 12 || ping > 90 -> "Good"
             else -> "Excellent"
         }
     }
@@ -735,22 +587,9 @@ class MainActivity : AppCompatActivity() {
         upload: Double
     ): String {
         return when {
-            packetLoss > 5 ||
-                    jitter > 40 ||
-                    download < 3 ||
-                    upload < 1 -> "Poor"
-
-            packetLoss > 2 ||
-                    jitter > 25 ||
-                    download < 8 ||
-                    upload < 2 -> "Fair"
-
-            packetLoss > 1 ||
-                    jitter > 15 ||
-                    download < 25 ||
-                    upload < 5 ||
-                    ping > 150 -> "Good"
-
+            packetLoss > 5 || jitter > 40 || download < 3 || upload < 1 -> "Poor"
+            packetLoss > 2 || jitter > 25 || download < 8 || upload < 2 -> "Fair"
+            packetLoss > 1 || jitter > 15 || download < 25 || upload < 5 || ping > 150 -> "Good"
             else -> "Excellent"
         }
     }
@@ -763,33 +602,14 @@ class MainActivity : AppCompatActivity() {
         upload: Double
     ): String {
         return when {
-            packetLoss > 5 ||
-                    jitter > 40 ||
-                    download < 2 ||
-                    upload < 1 ||
-                    ping > 250 -> "Poor"
-
-            packetLoss > 2 ||
-                    jitter > 25 ||
-                    download < 5 ||
-                    upload < 2 ||
-                    ping > 150 -> "Fair"
-
-            packetLoss > 1 ||
-                    jitter > 15 ||
-                    download < 10 ||
-                    upload < 3 ||
-                    ping > 100 -> "Good"
-
+            packetLoss > 5 || jitter > 40 || download < 2 || upload < 1 || ping > 250 -> "Poor"
+            packetLoss > 2 || jitter > 25 || download < 5 || upload < 2 || ping > 150 -> "Fair"
+            packetLoss > 1 || jitter > 15 || download < 10 || upload < 3 || ping > 100 -> "Good"
             else -> "Excellent"
         }
     }
 
     private fun formatValue(value: Double): String {
-        return String.format(
-            Locale.US,
-            "%.1f",
-            value
-        )
+        return String.format(Locale.US, "%.1f", value)
     }
 }
