@@ -79,7 +79,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun extractAveragePing(output: String): Double? {
         val match = Regex(
-            """=\\s*([0-9.]+)/([0-9.]+)/([0-9.]+)/"""
+            """=\s*([0-9.]+)/([0-9.]+)/([0-9.]+)/"""
         ).find(output)
 
         return match?.groupValues?.get(2)?.toDoubleOrNull()
