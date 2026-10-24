@@ -1,704 +1,720 @@
-package com.pulsenet
-
-import android.animation.AnimatorSet
-import android.animation.ObjectAnimator
-import android.content.Context
-import android.content.SharedPreferences
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.Path
-import android.graphics.RectF
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
-import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.view.View
-import android.view.animation.DecelerateInterpolator
-import android.widget.Button
-import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
-import org.json.JSONArray
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import kotlin.concurrent.thread
-import kotlin.math.abs
-import kotlin.math.sin
-
-class SignalWaveView @JvmOverloads constructor(
-    context: Context,
-    attrs: android.util.AttributeSet? = null,
-    defStyleAttr: Int = 0
-) : View(context, attrs, defStyleAttr) {
-
-    private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.argb(120, 92, 245, 255)
-        style = Paint.Style.STROKE
-        strokeWidth = 3f
-    }
-
-    private val wavePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.argb(230, 92, 245, 255)
-        style = Paint.Style.STROKE
-        strokeWidth = 4f
-        strokeCap = Paint.Cap.ROUND
-    }
-
-    private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.argb(90, 18, 236, 255)
-        style = Paint.Style.STROKE
-        strokeWidth = 9f
-        strokeCap = Paint.Cap.ROUND
-    }
-
-    private val centerDotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.rgb(112, 249, 255)
-        style = Paint.Style.FILL
-    }
-
-    private val handler = Handler(Looper.getMainLooper())
-    private var phase = 0f
-    private val pulseRunnable = object : Runnable {
-        override fun run() {
-            phase += 0.18f
-            invalidate()
-            handler.postDelayed(this, 16L)
-        }
-    }
-
-    init {
-        isClickable = false
-        handler.post(pulseRunnable)
-    }
-
-    override fun onDetachedFromWindow() {
-        super.onDetachedFromWindow()
-        handler.removeCallbacks(pulseRunnable)
-    }
-
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-
-        val cx = width / 2f
-        val cy = height / 2f
-        val radius = minOf(width, height) * 0.34f
-
-        val ring = RectF(
-            cx - radius,
-            cy - radius,
-            cx + radius,
-            cy + radius
-        )
-
-        canvas.drawArc(ring, 200f, 140f, false, ringPaint)
-
-        val path = Path()
-        val points = 120
-        val amplitude = 12f + (sin(phase) + 1f) * 6f
-
-        var first = true
-        for (i in 0..points) {
-            val x = (i / points.toFloat()) * width
-            val y = cy + sin((i / 20f) + phase) * amplitude + sin((i / 9f) + phase * 1.7f) * 6f
-            if (first) {
-                path.moveTo(x, y)
-                first = false
-            } else {
-                path.lineTo(x, y)
-            }
-        }
-
-        canvas.drawPath(path, glowPaint)
-        canvas.drawPath(path, wavePaint)
-        canvas.drawCircle(cx, cy, 8f, centerDotPaint)
-    }
-}
-
-class MainActivity : AppCompatActivity() {
-
-    private lateinit var testButton: Button
-    private lateinit var statusText: TextView
-    private lateinit var networkTypeText: TextView
-    private lateinit var healthScoreText: TextView
-    private lateinit var pingText: TextView
-    private lateinit var jitterText: TextView
-    private lateinit var lossText: TextView
-    private lateinit var downloadText: TextView
-    private lateinit var uploadText: TextView
-    private lateinit var stabilityText: TextView
-    private lateinit var gamingText: TextView
-    private lateinit var efootballText: TextView
-    private lateinit var codMobileText: TextView
-    private lateinit var streamingText: TextView
-    private lateinit var videoCallText: TextView
-    private lateinit var historyText: TextView
-    private lateinit var signalWaveView: SignalWaveView
-
-    private lateinit var historyPreferences: SharedPreferences
-
-    private val historyKey = "test_history"
-    private val maxHistoryItems = 10
-    private val uiHandler = Handler(Looper.getMainLooper())
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-
-        historyPreferences = getSharedPreferences("PulseNetHistory", MODE_PRIVATE)
-
-        testButton = findViewById(R.id.testButton)
-        statusText = findViewById(R.id.statusText)
-        networkTypeText = findViewById(R.id.networkTypeText)
-        healthScoreText = findViewById(R.id.healthScoreText)
-        pingText = findViewById(R.id.pingText)
-        jitterText = findViewById(R.id.jitterText)
-        lossText = findViewById(R.id.lossText)
-        downloadText = findViewById(R.id.downloadText)
-        uploadText = findViewById(R.id.uploadText)
-        stabilityText = findViewById(R.id.stabilityText)
-        gamingText = findViewById(R.id.gamingText)
-        efootballText = findViewById(R.id.efootballText)
-        codMobileText = findViewById(R.id.codMobileText)
-        streamingText = findViewById(R.id.streamingText)
-        videoCallText = findViewById(R.id.videoCallText)
-        historyText = findViewById(R.id.historyText)
-        signalWaveView = findViewById(R.id.signalWaveView)
-
-        networkTypeText.text = "Network Type: ${getNetworkType()}"
-        loadTestHistory()
-        animateEntrance()
-
-        testButton.setOnClickListener {
-            animatePress(testButton)
-            runNetworkTest()
-        }
-    }
-
-    private fun animateEntrance() {
-        val views = listOf(
-            testButton,
-            statusText,
-            networkTypeText,
-            healthScoreText,
-            pingText,
-            jitterText,
-            lossText,
-            downloadText,
-            uploadText,
-            stabilityText,
-            gamingText,
-            efootballText,
-            codMobileText,
-            streamingText,
-            videoCallText,
-            historyText
-        )
-
-        views.forEachIndexed { index, view ->
-            view.alpha = 0f
-            view.translationY = 26f
-            view.animate()
-                .alpha(1f)
-                .translationY(0f)
-                .setDuration(450)
-                .setStartDelay((index * 50L))
-                .setInterpolator(DecelerateInterpolator())
-                .start()
-        }
-
-        signalWaveView.alpha = 0f
-        signalWaveView.translationY = -8f
-        signalWaveView.animate()
-            .alpha(1f)
-            .translationY(0f)
-            .setDuration(500)
-            .setInterpolator(DecelerateInterpolator())
-            .start()
-    }
-
-    private fun animatePress(view: View) {
-        val scaleX = ObjectAnimator.ofFloat(view, View.SCALE_X, 1f, 0.96f, 1f)
-        val scaleY = ObjectAnimator.ofFloat(view, View.SCALE_Y, 1f, 0.96f, 1f)
-        val animatorSet = AnimatorSet()
-        animatorSet.playTogether(scaleX, scaleY)
-        animatorSet.duration = 220
-        animatorSet.interpolator = DecelerateInterpolator()
-        animatorSet.start()
-    }
-
-    private fun animateMetricCard(view: View) {
-        view.animate()
-            .scaleX(1.02f)
-            .scaleY(1.02f)
-            .setDuration(150)
-            .withEndAction {
-                view.animate()
-                    .scaleX(1f)
-                    .scaleY(1f)
-                    .setDuration(200)
-                    .start()
-            }
-            .start()
-    }
-
-    private fun getNetworkType(): String {
-        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val network = connectivityManager.activeNetwork ?: return "Unknown"
-        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return "Unknown"
-
-        return when {
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "Wi-Fi"
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "Mobile Data"
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "Ethernet"
-            else -> "Unknown"
-        }
-    }
-
-    private fun runNetworkTest() {
-        testButton.isEnabled = false
-        statusText.text = "Testing network..."
-
-        networkTypeText.text = "Network Type: ${getNetworkType()}"
-        healthScoreText.text = "Network Health: testing..."
-        healthScoreText.setTextColor(Color.WHITE)
-
-        pingText.text = "Ping: testing..."
-        jitterText.text = "Jitter: testing..."
-        lossText.text = "Packet Loss: testing..."
-        downloadText.text = "Download: testing..."
-        uploadText.text = "Upload: testing..."
-        stabilityText.text = "Network Stability: testing..."
-        gamingText.text = "Gaming Readiness: testing..."
-        efootballText.text = "eFootball Readiness: testing..."
-        codMobileText.text = "COD Mobile Readiness: testing..."
-        streamingText.text = "Streaming Readiness: testing..."
-        videoCallText.text = "Video Call Readiness: testing..."
-
-        thread {
-            try {
-                val pingResults = runPingTest()
-                val ping = pingResults.first
-                val jitter = pingResults.second
-                val packetLoss = pingResults.third
-
-                runOnUiThread {
-                    pingText.text = "Ping: ${formatValue(ping)} ms"
-                    jitterText.text = "Jitter: ${formatValue(jitter)} ms"
-                    lossText.text = "Packet Loss: ${formatValue(packetLoss)} %"
-                    animateMetricCard(pingText)
-                    animateMetricCard(jitterText)
-                    animateMetricCard(lossText)
-                }
-
-                val download = runDownloadTest()
-                runOnUiThread {
-                    downloadText.text = "Download: ${formatValue(download)} Mbps"
-                    animateMetricCard(downloadText)
-                }
-
-                val upload = runUploadTest()
-                runOnUiThread {
-                    uploadText.text = "Upload: ${formatValue(upload)} Mbps"
-                    animateMetricCard(uploadText)
-                }
-
-                val healthScore = calculateNetworkHealthScore(ping, jitter, packetLoss, download, upload)
-                val healthStatus = when {
-                    healthScore >= 90 -> "Excellent"
-                    healthScore >= 75 -> "Good"
-                    healthScore >= 50 -> "Fair"
-                    else -> "Poor"
-                }
-
-                val healthColor = when {
-                    healthScore >= 90 -> Color.rgb(46, 204, 113)
-                    healthScore >= 75 -> Color.rgb(52, 152, 219)
-                    healthScore >= 50 -> Color.rgb(243, 156, 18)
-                    else -> Color.rgb(231, 76, 60)
-                }
-
-                val stability = calculateStability(ping, jitter, packetLoss)
-                val gaming = calculateGamingReadiness(ping, jitter, packetLoss)
-                val efootball = calculateEfootballReadiness(ping, jitter, packetLoss)
-                val codMobile = calculateCodMobileReadiness(ping, jitter, packetLoss)
-                val streaming = calculateStreamingReadiness(ping, jitter, packetLoss, download, upload)
-                val videoCall = calculateVideoCallReadiness(ping, jitter, packetLoss, download, upload)
-
-                saveTestHistory(
-                    healthScore = healthScore,
-                    ping = ping,
-                    jitter = jitter,
-                    packetLoss = packetLoss,
-                    download = download,
-                    upload = upload,
-                    networkType = getNetworkType()
-                )
-
-                runOnUiThread {
-                    networkTypeText.text = "Network Type: ${getNetworkType()}"
-                    healthScoreText.text = "Network Health: $healthScore/100\n$healthStatus"
-                    healthScoreText.setTextColor(healthColor)
-                    stabilityText.text = "Network Stability: $stability"
-                    gamingText.text = "Gaming Readiness: $gaming"
-                    efootballText.text = "eFootball Readiness: $efootball"
-                    codMobileText.text = "COD Mobile Readiness: $codMobile"
-                    streamingText.text = "Streaming Readiness: $streaming"
-                    videoCallText.text = "Video Call Readiness: $videoCall"
-                    statusText.text = "Network test complete"
-                    loadTestHistory()
-                    animateMetricCard(healthScoreText)
-                    animateMetricCard(stabilityText)
-                    animateMetricCard(gamingText)
-                    animateMetricCard(efootballText)
-                    animateMetricCard(codMobileText)
-                    animateMetricCard(streamingText)
-                    animateMetricCard(videoCallText)
-                    testButton.isEnabled = true
-                }
-
-            } catch (e: Exception) {
-                runOnUiThread {
-                    statusText.text = "Test failed"
-                    healthScoreText.text = "Network Health: unavailable"
-                    healthScoreText.setTextColor(Color.WHITE)
-                    testButton.isEnabled = true
-                }
-            }
-        }
-    }
-
-    private fun saveTestHistory(
-        healthScore: Int,
-        ping: Double,
-        jitter: Double,
-        packetLoss: Double,
-        download: Double,
-        upload: Double,
-        networkType: String
-    ) {
-        val oldHistory = historyPreferences.getString(historyKey, "[]") ?: "[]"
-
-        val history = try {
-            JSONArray(oldHistory)
-        } catch (e: Exception) {
-            JSONArray()
-        }
-
-        val newResult = JSONObject().apply {
-            put("healthScore", healthScore)
-            put("ping", ping)
-            put("jitter", jitter)
-            put("packetLoss", packetLoss)
-            put("download", download)
-            put("upload", upload)
-            put("networkType", networkType)
-            put("timestamp", System.currentTimeMillis())
-        }
-
-        val newHistory = JSONArray()
-        newHistory.put(newResult)
-
-        for (i in 0 until minOf(history.length(), maxHistoryItems - 1)) {
-            newHistory.put(history.getJSONObject(i))
-        }
-
-        historyPreferences.edit()
-            .putString(historyKey, newHistory.toString())
-            .apply()
-    }
-
-    private fun loadTestHistory() {
-        val savedHistory = historyPreferences.getString(historyKey, "[]") ?: "[]"
-
-        val history = try {
-            JSONArray(savedHistory)
-        } catch (e: Exception) {
-            JSONArray()
-        }
-
-        if (history.length() == 0) {
-            historyText.text = "No test history yet"
-            return
-        }
-
-        val builder = StringBuilder()
-
-        for (i in 0 until history.length()) {
-            val result = history.getJSONObject(i)
-            val healthScore = result.optInt("healthScore", 0)
-            val ping = result.optDouble("ping", 0.0)
-            val jitter = result.optDouble("jitter", 0.0)
-            val packetLoss = result.optDouble("packetLoss", 0.0)
-            val download = result.optDouble("download", 0.0)
-            val upload = result.optDouble("upload", 0.0)
-            val networkType = result.optString("networkType", "Unknown")
-            val timestamp = result.optLong("timestamp", 0L)
-
-            val date = if (timestamp > 0) {
-                SimpleDateFormat("dd MMM yyyy • HH:mm", Locale.getDefault()).format(Date(timestamp))
-            } else {
-                "Unknown time"
-            }
-
-            val healthStatus = when {
-                healthScore >= 90 -> "Excellent"
-                healthScore >= 75 -> "Good"
-                healthScore >= 50 -> "Fair"
-                else -> "Poor"
-            }
-
-            builder.append("TEST ${i + 1}\n")
-            builder.append("$date\n")
-            builder.append("Network: $networkType\n")
-            builder.append("Health: $healthScore/100 — $healthStatus\n")
-            builder.append("Ping: ${formatValue(ping)} ms\n")
-            builder.append("Jitter: ${formatValue(jitter)} ms\n")
-            builder.append("Packet Loss: ${formatValue(packetLoss)} %\n")
-            builder.append("Download: ${formatValue(download)} Mbps\n")
-            builder.append("Upload: ${formatValue(upload)} Mbps\n")
-
-            if (i < history.length() - 1) {
-                builder.append("\n────────────────────\n\n")
-            }
-        }
-
-        historyText.text = builder.toString()
-    }
-
-    private fun runPingTest(): Triple<Double, Double, Double> {
-        val process = Runtime.getRuntime().exec(arrayOf("ping", "-c", "10", "-W", "2", "1.1.1.1"))
-        val output = process.inputStream.bufferedReader().readText()
-        process.waitFor()
-
-        val times = Regex("time=([0-9.]+)")
-            .findAll(output)
-            .map { it.groupValues[1].toDouble() }
-            .toList()
-
-        val transmitted = Regex("(\\d+) packets transmitted")
-            .find(output)
-            ?.groupValues
-            ?.getOrNull(1)
-            ?.toDoubleOrNull() ?: 10.0
-
-        val received = times.size.toDouble()
-        val packetLoss = if (transmitted > 0) {
-            ((transmitted - received) / transmitted) * 100.0
-        } else {
-            100.0
-        }
-
-        if (times.isEmpty()) {
-            return Triple(999.0, 999.0, 100.0)
-        }
-
-        val averagePing = times.average()
-        val jitter = if (times.size > 1) {
-            times.zipWithNext().map { abs(it.second - it.first) }.average()
-        } else {
-            0.0
-        }
-
-        return Triple(averagePing, jitter, packetLoss)
-    }
-
-    private fun runDownloadTest(): Double {
-        val url = URL("https://speed.cloudflare.com/__down?bytes=10000000")
-        val start = System.currentTimeMillis()
-        val connection = url.openConnection() as HttpURLConnection
-
-        connection.connectTimeout = 10000
-        connection.readTimeout = 20000
-        connection.requestMethod = "GET"
-
-        var totalBytes = 0L
-        connection.inputStream.use { input ->
-            val buffer = ByteArray(8192)
-            while (true) {
-                val read = input.read(buffer)
-                if (read == -1) break
-                totalBytes += read
-            }
-        }
-
-        connection.disconnect()
-
-        val elapsedSeconds = (System.currentTimeMillis() - start) / 1000.0
-        if (elapsedSeconds <= 0) return 0.0
-
-        return (totalBytes * 8.0) / elapsedSeconds / 1_000_000.0
-    }
-
-    private fun runUploadTest(): Double {
-        val url = URL("https://speed.cloudflare.com/__up")
-        val data = ByteArray(5 * 1024 * 1024)
-        val start = System.currentTimeMillis()
-        val connection = url.openConnection() as HttpURLConnection
-
-        connection.connectTimeout = 10000
-        connection.readTimeout = 20000
-        connection.doOutput = true
-        connection.requestMethod = "POST"
-        connection.setRequestProperty("Content-Type", "application/octet-stream")
-
-        connection.outputStream.use { output -> output.write(data) }
-        connection.responseCode
-        connection.disconnect()
-
-        val elapsedSeconds = (System.currentTimeMillis() - start) / 1000.0
-        if (elapsedSeconds <= 0) return 0.0
-
-        return (data.size * 8.0) / elapsedSeconds / 1_000_000.0
-    }
-
-    private fun calculateNetworkHealthScore(
-        ping: Double,
-        jitter: Double,
-        packetLoss: Double,
-        download: Double,
-        upload: Double
-    ): Int {
-        val pingScore = when {
-            ping <= 30 -> 100
-            ping <= 60 -> 90
-            ping <= 100 -> 75
-            ping <= 150 -> 55
-            ping <= 250 -> 30
-            else -> 10
-        }
-
-        val jitterScore = when {
-            jitter <= 5 -> 100
-            jitter <= 10 -> 90
-            jitter <= 15 -> 75
-            jitter <= 25 -> 55
-            jitter <= 40 -> 30
-            else -> 10
-        }
-
-        val lossScore = when {
-            packetLoss <= 0 -> 100
-            packetLoss <= 1 -> 90
-            packetLoss <= 2 -> 75
-            packetLoss <= 5 -> 40
-            else -> 10
-        }
-
-        val downloadScore = when {
-            download >= 50 -> 100
-            download >= 25 -> 90
-            download >= 10 -> 75
-            download >= 5 -> 55
-            download >= 2 -> 30
-            else -> 10
-        }
-
-        val uploadScore = when {
-            upload >= 10 -> 100
-            upload >= 5 -> 90
-            upload >= 3 -> 75
-            upload >= 2 -> 55
-            upload >= 1 -> 30
-            else -> 10
-        }
-
-        return (
-            pingScore * 0.25 +
-                jitterScore * 0.20 +
-                lossScore * 0.20 +
-                downloadScore * 0.20 +
-                uploadScore * 0.15
-            ).toInt()
-    }
-
-    private fun calculateStability(
-        ping: Double,
-        jitter: Double,
-        packetLoss: Double
-    ): String {
-        return when {
-            packetLoss > 5 || jitter > 40 || ping > 250 -> "Poor"
-            packetLoss > 2 || jitter > 25 || ping > 150 -> "Fair"
-            packetLoss > 1 || jitter > 15 || ping > 100 -> "Good"
-            else -> "Excellent"
-        }
-    }
-
-    private fun calculateGamingReadiness(
-        ping: Double,
-        jitter: Double,
-        packetLoss: Double
-    ): String {
-        return when {
-            packetLoss > 5 || jitter > 40 || ping > 250 -> "Poor"
-            packetLoss > 2 || jitter > 25 || ping > 150 -> "Fair"
-            packetLoss > 1 || jitter > 15 || ping > 100 -> "Good"
-            else -> "Excellent"
-        }
-    }
-
-    private fun calculateEfootballReadiness(
-        ping: Double,
-        jitter: Double,
-        packetLoss: Double
-    ): String {
-        return when {
-            packetLoss > 5 || jitter > 30 || ping > 220 -> "Poor"
-            packetLoss > 2 || jitter > 20 || ping > 150 -> "Fair"
-            packetLoss > 1 || jitter > 10 || ping > 80 -> "Good"
-            else -> "Excellent"
-        }
-    }
-
-    private fun calculateCodMobileReadiness(
-        ping: Double,
-        jitter: Double,
-        packetLoss: Double
-    ): String {
-        return when {
-            packetLoss > 5 || jitter > 35 || ping > 250 -> "Poor"
-            packetLoss > 2 || jitter > 20 || ping > 160 -> "Fair"
-            packetLoss > 1 || jitter > 12 || ping > 90 -> "Good"
-            else -> "Excellent"
-        }
-    }
-
-    private fun calculateStreamingReadiness(
-        ping: Double,
-        jitter: Double,
-        packetLoss: Double,
-        download: Double,
-        upload: Double
-    ): String {
-        return when {
-            packetLoss > 5 || jitter > 40 || download < 3 || upload < 1 -> "Poor"
-            packetLoss > 2 || jitter > 25 || download < 8 || upload < 2 -> "Fair"
-            packetLoss > 1 || jitter > 15 || download < 25 || upload < 5 || ping > 150 -> "Good"
-            else -> "Excellent"
-        }
-    }
-
-    private fun calculateVideoCallReadiness(
-        ping: Double,
-        jitter: Double,
-        packetLoss: Double,
-        download: Double,
-        upload: Double
-    ): String {
-        return when {
-            packetLoss > 5 || jitter > 40 || download < 2 || upload < 1 || ping > 250 -> "Poor"
-            packetLoss > 2 || jitter > 25 || download < 5 || upload < 2 || ping > 150 -> "Fair"
-            packetLoss > 1 || jitter > 15 || download < 10 || upload < 3 || ping > 100 -> "Good"
-            else -> "Excellent"
-        }
-    }
-
-    private fun formatValue(value: Double): String {
-        return String.format(Locale.US, "%.1f", value)
-    }
-}
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_app_gradient"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:animateLayoutChanges="true"
+        android:orientation="vertical"
+        android:padding="22dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="PulseNet"
+                    android:textColor="#F7FBFF"
+                    android:textSize="32sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Premium signal intelligence"
+                    android:textColor="#9DB4D1"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <FrameLayout
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:gravity="center">
+
+                <com.pulsenet.SignalWaveView
+                    android:id="@+id/signalWaveView"
+                    android:layout_width="64dp"
+                    android:layout_height="64dp" />
+            </FrameLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/profileCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:background="@drawable/bg_panel_glow"
+            android:orientation="vertical"
+            android:padding="18dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    android:background="@drawable/bg_status_dot"
+                    android:gravity="center"
+                    android:text="LW"
+                    android:textColor="#09151d"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Leowilliam.dev"
+                        android:textColor="#F4F8FF"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="5G • Ultra stable"
+                        android:textColor="#8EA0B9"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="#13273F"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="6dp"
+                    android:text="PRO"
+                    android:textColor="#8BE9FF"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Profile optimization"
+                android:textColor="#A7C3E6"
+                android:textSize="12sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="92% tuned"
+                    android:textColor="#F2FBFF"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Live"
+                    android:textColor="#7AF5C3"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="8dp"
+                android:layout_marginTop="12dp"
+                android:background="#1C2D3E" />
+
+            <View
+                android:layout_width="92%"
+                android:layout_height="8dp"
+                android:layout_marginTop="-8dp"
+                android:background="#4DD1FF" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/quickStatsCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:background="@drawable/bg_panel"
+            android:orientation="horizontal"
+            android:padding="12dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="#111A26"
+                android:orientation="vertical"
+                android:padding="14dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Latency"
+                    android:textColor="#8EA0B9"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="24 ms"
+                    android:textColor="#F5F9FF"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:background="#111A26"
+                android:orientation="vertical"
+                android:padding="14dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Signal"
+                    android:textColor="#8EA0B9"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Excellent"
+                    android:textColor="#7AF5C3"
+                    android:textSize="19sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:background="#111A26"
+                android:orientation="vertical"
+                android:padding="14dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Uptime"
+                    android:textColor="#8EA0B9"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="99.9%"
+                    android:textColor="#F5F9FF"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/testButton"
+            android:layout_width="match_parent"
+            android:layout_height="62dp"
+            android:layout_marginTop="26dp"
+            android:background="@drawable/bg_primary_button"
+            android:elevation="10dp"
+            android:shadowColor="#5EE6FF"
+            android:stateListAnimator="@null"
+            android:text="Run Network Scan"
+            android:textAllCaps="true"
+            android:textColor="#F8FBFF"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/statusText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:gravity="center"
+            android:text="Ready to test"
+            android:textColor="#E7F4FF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:background="@drawable/bg_panel"
+            android:orientation="vertical"
+            android:padding="18dp">
+
+            <TextView
+                android:id="@+id/networkTypeText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="Network Type: Unknown"
+                android:textColor="#F4F8FF"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/settingsCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:background="@drawable/bg_panel"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Smart settings"
+                android:textColor="#F5F9FF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Auto scan"
+                    android:textColor="#DDE9F9"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="#16372d"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="4dp"
+                    android:text="ON"
+                    android:textColor="#7AF5C3"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Background monitor"
+                    android:textColor="#DDE9F9"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="#1d2f48"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="4dp"
+                    android:text="ADAPT"
+                    android:textColor="#8BE9FF"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Gaming profile"
+                    android:textColor="#DDE9F9"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="#3f2b1c"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="4dp"
+                    android:text="BOOST"
+                    android:textColor="#FFCF70"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/profilePanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:background="@drawable/bg_panel_glow"
+            android:orientation="vertical"
+            android:padding="18dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Signal profile"
+                android:textColor="#F4F8FF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:background="@drawable/bg_status_dot" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
+                    android:text="Balanced gameplay"
+                    android:textColor="#EBF4FF"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Low ping"
+                    android:textColor="#7AF5C3"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:background="#57D9FF" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
+                    android:text="4K streaming"
+                    android:textColor="#EBF4FF"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Stable"
+                    android:textColor="#8BE9FF"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:background="#9E7BFF" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
+                    android:text="Video calls"
+                    android:textColor="#EBF4FF"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Smooth"
+                    android:textColor="#D8C3FF"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:background="@drawable/bg_panel_glow"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <TextView
+                android:id="@+id/healthScoreText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="Network Health: —/100"
+                android:textColor="#FFFFFF"
+                android:textSize="25sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:letterSpacing="0.12"
+            android:text="NETWORK METRICS"
+            android:textColor="#8EA0B9"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/bg_panel"
+            android:orientation="vertical"
+            android:padding="8dp">
+
+            <TextView
+                android:id="@+id/pingText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#111A26"
+                android:padding="16dp"
+                android:text="Ping: — ms"
+                android:textColor="#F5F9FF"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/jitterText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="#111A26"
+                android:padding="16dp"
+                android:text="Jitter: — ms"
+                android:textColor="#F5F9FF"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/lossText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="#111A26"
+                android:padding="16dp"
+                android:text="Packet Loss: — %"
+                android:textColor="#F5F9FF"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/downloadText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="#111A26"
+                android:padding="16dp"
+                android:text="Download: — Mbps"
+                android:textColor="#F5F9FF"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/uploadText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="#111A26"
+                android:padding="16dp"
+                android:text="Upload: — Mbps"
+                android:textColor="#F5F9FF"
+                android:textSize="16sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/stabilityText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:background="@drawable/bg_panel"
+            android:padding="18dp"
+            android:text="Network Stability: —"
+            android:textColor="#F5F9FF"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="30dp"
+            android:letterSpacing="0.12"
+            android:text="GAMING"
+            android:textColor="#8EA0B9"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/bg_panel"
+            android:orientation="vertical"
+            android:padding="8dp">
+
+            <TextView
+                android:id="@+id/gamingText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#111A26"
+                android:padding="16dp"
+                android:text="Gaming Readiness: —"
+                android:textColor="#F5F9FF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/efootballText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="#111A26"
+                android:padding="16dp"
+                android:text="eFootball Readiness: —"
+                android:textColor="#F5F9FF"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/codMobileText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="#111A26"
+                android:padding="16dp"
+                android:text="COD Mobile Readiness: —"
+                android:textColor="#F5F9FF"
+                android:textSize="16sp" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="30dp"
+            android:letterSpacing="0.12"
+            android:text="STREAMING &amp; CALLS"
+            android:textColor="#8EA0B9"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/bg_panel"
+            android:orientation="vertical"
+            android:padding="8dp">
+
+            <TextView
+                android:id="@+id/streamingText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#111A26"
+                android:padding="16dp"
+                android:text="Streaming Readiness: —"
+                android:textColor="#F5F9FF"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/videoCallText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="#111A26"
+                android:padding="16dp"
+                android:text="Video Call Readiness: —"
+                android:textColor="#F5F9FF"
+                android:textSize="16sp" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:letterSpacing="0.12"
+            android:text="TEST HISTORY"
+            android:textColor="#8EA0B9"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/historyText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:layout_marginBottom="24dp"
+            android:background="@drawable/bg_panel"
+            android:padding="18dp"
+            android:text="No test history yet"
+            android:textColor="#F5F9FF"
+            android:textSize="15sp" />
+
+    </LinearLayout>
+
+</ScrollView>
