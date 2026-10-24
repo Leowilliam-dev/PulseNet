@@ -13,6 +13,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.concurrent.thread
 import kotlin.math.abs
 
@@ -33,6 +36,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var codMobileText: TextView
     private lateinit var streamingText: TextView
     private lateinit var videoCallText: TextView
+    private lateinit var historyText: TextView
 
     private lateinit var historyPreferences: SharedPreferences
 
@@ -61,9 +65,12 @@ class MainActivity : AppCompatActivity() {
         codMobileText = findViewById(R.id.codMobileText)
         streamingText = findViewById(R.id.streamingText)
         videoCallText = findViewById(R.id.videoCallText)
+        historyText = findViewById(R.id.historyText)
 
         networkTypeText.text =
             "Network Type: ${getNetworkType()}"
+
+        loadTestHistory()
 
         testButton.setOnClickListener {
             runNetworkTest()
@@ -269,6 +276,8 @@ class MainActivity : AppCompatActivity() {
                     statusText.text =
                         "Network test complete"
 
+                    loadTestHistory()
+
                     testButton.isEnabled = true
                 }
 
@@ -328,6 +337,86 @@ class MainActivity : AppCompatActivity() {
         historyPreferences.edit()
             .putString(historyKey, newHistory.toString())
             .apply()
+    }
+
+    private fun loadTestHistory() {
+        val savedHistory =
+            historyPreferences.getString(historyKey, "[]")
+                ?: "[]"
+
+        val history = try {
+            JSONArray(savedHistory)
+        } catch (e: Exception) {
+            JSONArray()
+        }
+
+        if (history.length() == 0) {
+            historyText.text = "No test history yet"
+            return
+        }
+
+        val builder = StringBuilder()
+
+        for (i in 0 until history.length()) {
+            val result = history.getJSONObject(i)
+
+            val healthScore =
+                result.optInt("healthScore", 0)
+
+            val ping =
+                result.optDouble("ping", 0.0)
+
+            val jitter =
+                result.optDouble("jitter", 0.0)
+
+            val packetLoss =
+                result.optDouble("packetLoss", 0.0)
+
+            val download =
+                result.optDouble("download", 0.0)
+
+            val upload =
+                result.optDouble("upload", 0.0)
+
+            val networkType =
+                result.optString("networkType", "Unknown")
+
+            val timestamp =
+                result.optLong("timestamp", 0L)
+
+            val date =
+                if (timestamp > 0) {
+                    SimpleDateFormat(
+                        "dd MMM yyyy • HH:mm",
+                        Locale.getDefault()
+                    ).format(Date(timestamp))
+                } else {
+                    "Unknown time"
+                }
+
+            val healthStatus = when {
+                healthScore >= 90 -> "Excellent"
+                healthScore >= 75 -> "Good"
+                healthScore >= 50 -> "Fair"
+                else -> "Poor"
+            }
+
+            builder.append("TEST ${i + 1}\n")
+            builder.append("$date\n")
+            builder.append("Network: $networkType\n")
+            builder.append("Health: $healthScore/100 — $healthStatus\n")
+            builder.append("Ping: ${formatValue(ping)} ms\n")
+            builder.append("Jitter: ${formatValue(jitter)} ms\n")
+            builder.append("Packet Loss: ${formatValue(packetLoss)} %\n")
+            builder.append("Download: ${formatValue(download)} Mbps\n")
+            builder.append("Upload: ${formatValue(upload)} Mbps\n")
+
+            if (i < history.length() - 1) {
+                builder.append("\n────────────────────\n\n")
+            }
+        }
+
+        historyText.text = builder.toString()
     }
 
     private fun runPingTest(): Triple<Double, Double, Double> {
@@ -698,6 +787,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun formatValue(value: Double): String {
         return String.format(
+            Locale.US,
             "%.1f",
             value
         )
