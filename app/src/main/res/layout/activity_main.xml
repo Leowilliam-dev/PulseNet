@@ -13,8 +13,6 @@
         android:orientation="vertical"
         android:padding="20dp">
 
-        <!-- Header -->
-
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -31,8 +29,6 @@
             android:textColor="#8F9BAB"
             android:textSize="15sp" />
 
-        <!-- Test Button -->
-
         <Button
             android:id="@+id/testButton"
             android:layout_width="match_parent"
@@ -41,8 +37,6 @@
             android:text="TEST NETWORK"
             android:textSize="15sp"
             android:textStyle="bold" />
-
-        <!-- Status -->
 
         <TextView
             android:id="@+id/statusText"
@@ -55,7 +49,18 @@
             android:textSize="17sp"
             android:textStyle="bold" />
 
-        <!-- Network Health -->
+        <TextView
+            android:id="@+id/networkTypeText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:background="#151B23"
+            android:gravity="center"
+            android:padding="18dp"
+            android:text="Network Type: Unknown"
+            android:textColor="#FFFFFF"
+            android:textSize="17sp"
+            android:textStyle="bold" />
 
         <TextView
             android:id="@+id/healthScoreText"
@@ -69,8 +74,6 @@
             android:textColor="#FFFFFF"
             android:textSize="24sp"
             android:textStyle="bold" />
-
-        <!-- Network Metrics -->
 
         <TextView
             android:layout_width="wrap_content"
@@ -148,8 +151,6 @@
             android:textSize="17sp"
             android:textStyle="bold" />
 
-        <!-- Gaming -->
-
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -192,8 +193,6 @@
             android:text="COD Mobile Readiness: —"
             android:textColor="#FFFFFF"
             android:textSize="17sp" />
-
-        <!-- Streaming & Calls -->
 
         <TextView
             android:layout_width="wrap_content"
