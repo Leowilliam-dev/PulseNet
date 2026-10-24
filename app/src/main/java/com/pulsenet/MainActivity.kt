@@ -24,6 +24,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var gamingText: TextView
     private lateinit var streamingText: TextView
     private lateinit var efootballText: TextView
+    private lateinit var codMobileText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,6 +41,7 @@ class MainActivity : AppCompatActivity() {
         gamingText = findViewById(R.id.gamingText)
         streamingText = findViewById(R.id.streamingText)
         efootballText = findViewById(R.id.efootballText)
+        codMobileText = findViewById(R.id.codMobileText)
 
         testButton.setOnClickListener {
             runNetworkTest()
@@ -59,6 +61,7 @@ class MainActivity : AppCompatActivity() {
         gamingText.text = "Gaming Readiness: testing..."
         streamingText.text = "Streaming Readiness: waiting..."
         efootballText.text = "eFootball Readiness: testing..."
+        codMobileText.text = "COD Mobile Readiness: testing..."
 
         thread {
             try {
@@ -95,6 +98,9 @@ class MainActivity : AppCompatActivity() {
                 val efootball =
                     calculateEfootballReadiness(ping, jitter, packetLoss)
 
+                val codMobile =
+                    calculateCodMobileReadiness(ping, jitter, packetLoss)
+
                 runOnUiThread {
                     pingText.text =
                         if (ping != null)
@@ -120,8 +126,14 @@ class MainActivity : AppCompatActivity() {
                     efootballText.text =
                         "eFootball Readiness: $efootball"
 
-                    statusText.text = "Testing download speed..."
-                    downloadText.text = "Download: testing..."
+                    codMobileText.text =
+                        "COD Mobile Readiness: $codMobile"
+
+                    statusText.text =
+                        "Testing download speed..."
+
+                    downloadText.text =
+                        "Download: testing..."
                 }
 
                 val downloadSpeed = runDownloadTest()
@@ -133,8 +145,11 @@ class MainActivity : AppCompatActivity() {
                         else
                             "Download: unavailable"
 
-                    statusText.text = "Testing upload speed..."
-                    uploadText.text = "Upload: testing..."
+                    statusText.text =
+                        "Testing upload speed..."
+
+                    uploadText.text =
+                        "Upload: testing..."
                 }
 
                 val uploadSpeed = runUploadTest()
@@ -157,7 +172,9 @@ class MainActivity : AppCompatActivity() {
                     streamingText.text =
                         "Streaming Readiness: $streaming"
 
-                    statusText.text = "Network test complete"
+                    statusText.text =
+                        "Network test complete"
+
                     testButton.isEnabled = true
                 }
 
@@ -167,6 +184,37 @@ class MainActivity : AppCompatActivity() {
                     testButton.isEnabled = true
                 }
             }
+        }
+    }
+
+    private fun calculateCodMobileReadiness(
+        ping: Double?,
+        jitter: Double?,
+        packetLoss: Double
+    ): String {
+
+        if (ping == null || jitter == null) {
+            return "Unavailable"
+        }
+
+        return when {
+            packetLoss > 5.0 ||
+                jitter > 35.0 ||
+                ping > 250.0 ->
+                "Poor"
+
+            packetLoss > 2.0 ||
+                jitter > 20.0 ||
+                ping > 160.0 ->
+                "Fair"
+
+            packetLoss > 1.0 ||
+                jitter > 12.0 ||
+                ping > 90.0 ->
+                "Good"
+
+            else ->
+                "Excellent"
         }
     }
 
@@ -213,7 +261,10 @@ class MainActivity : AppCompatActivity() {
             connection.connectTimeout = 10000
             connection.readTimeout = 20000
             connection.useCaches = false
-            connection.setRequestProperty("Accept-Encoding", "identity")
+            connection.setRequestProperty(
+                "Accept-Encoding",
+                "identity"
+            )
 
             val startTime = System.nanoTime()
 
