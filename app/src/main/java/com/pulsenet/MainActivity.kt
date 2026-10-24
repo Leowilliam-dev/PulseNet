@@ -23,6 +23,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var stabilityText: TextView
     private lateinit var gamingText: TextView
     private lateinit var streamingText: TextView
+    private lateinit var videoCallText: TextView
     private lateinit var efootballText: TextView
     private lateinit var codMobileText: TextView
 
@@ -40,6 +41,7 @@ class MainActivity : AppCompatActivity() {
         stabilityText = findViewById(R.id.stabilityText)
         gamingText = findViewById(R.id.gamingText)
         streamingText = findViewById(R.id.streamingText)
+        videoCallText = findViewById(R.id.videoCallText)
         efootballText = findViewById(R.id.efootballText)
         codMobileText = findViewById(R.id.codMobileText)
 
@@ -60,6 +62,7 @@ class MainActivity : AppCompatActivity() {
         stabilityText.text = "Network Stability: testing..."
         gamingText.text = "Gaming Readiness: testing..."
         streamingText.text = "Streaming Readiness: waiting..."
+        videoCallText.text = "Video Call Readiness: testing..."
         efootballText.text = "eFootball Readiness: testing..."
         codMobileText.text = "COD Mobile Readiness: testing..."
 
@@ -162,6 +165,14 @@ class MainActivity : AppCompatActivity() {
                     uploadSpeed
                 )
 
+                val videoCall = calculateVideoCallReadiness(
+                    ping,
+                    jitter,
+                    packetLoss,
+                    downloadSpeed,
+                    uploadSpeed
+                )
+
                 runOnUiThread {
                     uploadText.text =
                         if (uploadSpeed != null)
@@ -171,6 +182,9 @@ class MainActivity : AppCompatActivity() {
 
                     streamingText.text =
                         "Streaming Readiness: $streaming"
+
+                    videoCallText.text =
+                        "Video Call Readiness: $videoCall"
 
                     statusText.text =
                         "Network test complete"
@@ -184,6 +198,50 @@ class MainActivity : AppCompatActivity() {
                     testButton.isEnabled = true
                 }
             }
+        }
+    }
+
+    private fun calculateVideoCallReadiness(
+        ping: Double?,
+        jitter: Double?,
+        packetLoss: Double,
+        download: Double?,
+        upload: Double?
+    ): String {
+
+        if (
+            ping == null ||
+            jitter == null ||
+            download == null ||
+            upload == null
+        ) {
+            return "Unavailable"
+        }
+
+        return when {
+            packetLoss > 5.0 ||
+                jitter > 40.0 ||
+                download < 2.0 ||
+                upload < 1.0 ||
+                ping > 250.0 ->
+                "Poor"
+
+            packetLoss > 2.0 ||
+                jitter > 25.0 ||
+                download < 5.0 ||
+                upload < 2.0 ||
+                ping > 150.0 ->
+                "Fair"
+
+            packetLoss > 1.0 ||
+                jitter > 15.0 ||
+                download < 10.0 ||
+                upload < 3.0 ||
+                ping > 100.0 ->
+                "Good"
+
+            else ->
+                "Excellent"
         }
     }
 
