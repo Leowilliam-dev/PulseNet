@@ -19,6 +19,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var jitterText: TextView
     private lateinit var lossText: TextView
     private lateinit var downloadText: TextView
+    private lateinit var uploadText: TextView
     private lateinit var stabilityText: TextView
     private lateinit var gamingText: TextView
 
@@ -33,6 +34,7 @@ class MainActivity : AppCompatActivity() {
         jitterText = findViewById(R.id.jitterText)
         lossText = findViewById(R.id.lossText)
         downloadText = findViewById(R.id.downloadText)
+        uploadText = findViewById(R.id.uploadText)
         stabilityText = findViewById(R.id.stabilityText)
         gamingText = findViewById(R.id.gamingText)
 
@@ -49,6 +51,7 @@ class MainActivity : AppCompatActivity() {
         jitterText.text = "Jitter: testing..."
         lossText.text = "Packet Loss: testing..."
         downloadText.text = "Download: waiting..."
+        uploadText.text = "Upload: waiting..."
         stabilityText.text = "Network Stability: testing..."
         gamingText.text = "Gaming Readiness: testing..."
 
@@ -119,12 +122,24 @@ class MainActivity : AppCompatActivity() {
                 val downloadSpeed = runDownloadTest()
 
                 runOnUiThread {
-                    if (downloadSpeed != null) {
-                        downloadText.text =
+                    downloadText.text =
+                        if (downloadSpeed != null)
                             "Download: %.2f Mbps".format(downloadSpeed)
-                    } else {
-                        downloadText.text = "Download: unavailable"
-                    }
+                        else
+                            "Download: unavailable"
+
+                    statusText.text = "Testing upload speed..."
+                    uploadText.text = "Upload: testing..."
+                }
+
+                val uploadSpeed = runUploadTest()
+
+                runOnUiThread {
+                    uploadText.text =
+                        if (uploadSpeed != null)
+                            "Upload: %.2f Mbps".format(uploadSpeed)
+                        else
+                            "Upload: unavailable"
 
                     statusText.text = "Network test complete"
                     testButton.isEnabled = true
@@ -148,14 +163,10 @@ class MainActivity : AppCompatActivity() {
             )
 
             connection = url.openConnection() as HttpURLConnection
-
             connection.connectTimeout = 10000
             connection.readTimeout = 20000
             connection.useCaches = false
-            connection.setRequestProperty(
-                "Accept-Encoding",
-                "identity"
-            )
+            connection.setRequestProperty("Accept-Encoding", "identity")
 
             val startTime = System.nanoTime()
 
@@ -165,11 +176,7 @@ class MainActivity : AppCompatActivity() {
 
                 while (true) {
                     val bytesRead = input.read(buffer)
-
-                    if (bytesRead == -1) {
-                        break
-                    }
-
+                    if (bytesRead == -1) break
                     totalBytes += bytesRead
                 }
 
@@ -181,6 +188,66 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 (totalBytes * 8.0) /
+                    elapsedSeconds /
+                    1_000_000.0
+            }
+
+        } catch (e: Exception) {
+            null
+        } finally {
+            connection?.disconnect()
+        }
+    }
+
+    private fun runUploadTest(): Double? {
+        var connection: HttpURLConnection? = null
+
+        return try {
+            val url = URL("https://speed.cloudflare.com/__up")
+
+            connection = url.openConnection() as HttpURLConnection
+
+            connection.requestMethod = "POST"
+            connection.doOutput = true
+            connection.connectTimeout = 10000
+            connection.readTimeout = 20000
+            connection.useCaches = false
+            connection.setRequestProperty(
+                "Content-Type",
+                "application/octet-stream"
+            )
+
+            val uploadSize = 5 * 1024 * 1024
+            connection.setFixedLengthStreamingMode(uploadSize)
+
+            val buffer = ByteArray(64 * 1024)
+
+            val startTime = System.nanoTime()
+
+            connection.outputStream.use { output ->
+                var remaining = uploadSize
+
+                while (remaining > 0) {
+                    val amount = minOf(buffer.size, remaining)
+                    output.write(buffer, 0, amount)
+                    remaining -= amount
+                }
+
+                output.flush()
+            }
+
+            val responseCode = connection.responseCode
+
+            val elapsedSeconds =
+                (System.nanoTime() - startTime) / 1_000_000_000.0
+
+            if (
+                responseCode !in 200..299 ||
+                elapsedSeconds <= 0.0
+            ) {
+                null
+            } else {
+                (uploadSize * 8.0) /
                     elapsedSeconds /
                     1_000_000.0
             }
