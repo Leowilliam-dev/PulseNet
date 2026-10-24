@@ -1,6 +1,9 @@
 package com.pulsenet
 
+import android.content.Context
 import android.graphics.Color
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.widget.Button
 import android.widget.TextView
@@ -14,6 +17,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var testButton: Button
     private lateinit var statusText: TextView
+    private lateinit var networkTypeText: TextView
     private lateinit var healthScoreText: TextView
     private lateinit var pingText: TextView
     private lateinit var jitterText: TextView
@@ -33,6 +37,7 @@ class MainActivity : AppCompatActivity() {
 
         testButton = findViewById(R.id.testButton)
         statusText = findViewById(R.id.statusText)
+        networkTypeText = findViewById(R.id.networkTypeText)
         healthScoreText = findViewById(R.id.healthScoreText)
         pingText = findViewById(R.id.pingText)
         jitterText = findViewById(R.id.jitterText)
@@ -46,14 +51,43 @@ class MainActivity : AppCompatActivity() {
         streamingText = findViewById(R.id.streamingText)
         videoCallText = findViewById(R.id.videoCallText)
 
+        networkTypeText.text = "Network Type: ${getNetworkType()}"
+
         testButton.setOnClickListener {
             runNetworkTest()
+        }
+    }
+
+    private fun getNetworkType(): String {
+        val connectivityManager =
+            getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+        val network = connectivityManager.activeNetwork
+            ?: return "Unknown"
+
+        val capabilities =
+            connectivityManager.getNetworkCapabilities(network)
+                ?: return "Unknown"
+
+        return when {
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ->
+                "Wi-Fi"
+
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ->
+                "Mobile Data"
+
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) ->
+                "Ethernet"
+
+            else ->
+                "Unknown"
         }
     }
 
     private fun runNetworkTest() {
         testButton.isEnabled = false
         statusText.text = "Testing network..."
+        networkTypeText.text = "Network Type: ${getNetworkType()}"
 
         healthScoreText.text = "Network Health: testing..."
         healthScoreText.setTextColor(Color.WHITE)
@@ -159,8 +193,12 @@ class MainActivity : AppCompatActivity() {
                 )
 
                 runOnUiThread {
+                    networkTypeText.text =
+                        "Network Type: ${getNetworkType()}"
+
                     healthScoreText.text =
                         "Network Health: $healthScore/100\n$healthStatus"
+
                     healthScoreText.setTextColor(healthColor)
 
                     stabilityText.text =
