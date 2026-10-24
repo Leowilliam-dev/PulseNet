@@ -8,6 +8,8 @@ import android.graphics.Color
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.view.animation.DecelerateInterpolator
 import android.widget.Button
@@ -41,18 +43,19 @@ class MainActivity : AppCompatActivity() {
     private lateinit var streamingText: TextView
     private lateinit var videoCallText: TextView
     private lateinit var historyText: TextView
+    private lateinit var statusPulse: View
 
     private lateinit var historyPreferences: SharedPreferences
 
     private val historyKey = "test_history"
     private val maxHistoryItems = 10
+    private val uiHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        historyPreferences =
-            getSharedPreferences("PulseNetHistory", MODE_PRIVATE)
+        historyPreferences = getSharedPreferences("PulseNetHistory", MODE_PRIVATE)
 
         testButton = findViewById(R.id.testButton)
         statusText = findViewById(R.id.statusText)
@@ -70,11 +73,12 @@ class MainActivity : AppCompatActivity() {
         streamingText = findViewById(R.id.streamingText)
         videoCallText = findViewById(R.id.videoCallText)
         historyText = findViewById(R.id.historyText)
+        statusPulse = findViewById(R.id.statusPulse)
 
         networkTypeText.text = "Network Type: ${getNetworkType()}"
-
         loadTestHistory()
         animateEntrance()
+        animateSignalPulse()
 
         testButton.setOnClickListener {
             animatePress(testButton)
@@ -115,6 +119,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun animateSignalPulse() {
+        val pulseOut = ObjectAnimator.ofFloat(statusPulse, View.SCALE_X, 1f, 1.45f, 1f)
+        val pulseOutY = ObjectAnimator.ofFloat(statusPulse, View.SCALE_Y, 1f, 1.45f, 1f)
+        val pulseAlpha = ObjectAnimator.ofFloat(statusPulse, View.ALPHA, 0.7f, 1f, 0.7f)
+
+        val set = AnimatorSet().apply {
+            playTogether(pulseOut, pulseOutY, pulseAlpha)
+            duration = 1800
+            interpolator = DecelerateInterpolator()
+        }
+
+        set.start()
+        uiHandler.postDelayed({ animateSignalPulse() }, 1800)
+    }
+
     private fun animatePress(view: View) {
         val scaleX = ObjectAnimator.ofFloat(view, View.SCALE_X, 1f, 0.96f, 1f)
         val scaleY = ObjectAnimator.ofFloat(view, View.SCALE_Y, 1f, 0.96f, 1f)
@@ -141,14 +160,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getNetworkType(): String {
-        val connectivityManager =
-            getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-
-        val network = connectivityManager.activeNetwork
-            ?: return "Unknown"
-
-        val capabilities = connectivityManager.getNetworkCapabilities(network)
-            ?: return "Unknown"
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return "Unknown"
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return "Unknown"
 
         return when {
             capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "Wi-Fi"
@@ -370,17 +384,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun runPingTest(): Triple<Double, Double, Double> {
-        val process = Runtime.getRuntime().exec(
-            arrayOf(
-                "ping",
-                "-c",
-                "10",
-                "-W",
-                "2",
-                "1.1.1.1"
-            )
-        )
-
+        val process = Runtime.getRuntime().exec(arrayOf("ping", "-c", "10", "-W", "2", "1.1.1.1"))
         val output = process.inputStream.bufferedReader().readText()
         process.waitFor()
 
@@ -426,7 +430,6 @@ class MainActivity : AppCompatActivity() {
         connection.requestMethod = "GET"
 
         var totalBytes = 0L
-
         connection.inputStream.use { input ->
             val buffer = ByteArray(8192)
             while (true) {
@@ -473,7 +476,6 @@ class MainActivity : AppCompatActivity() {
         download: Double,
         upload: Double
     ): Int {
-
         val pingScore = when {
             ping <= 30 -> 100
             ping <= 60 -> 90
