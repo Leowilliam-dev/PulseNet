@@ -117,6 +117,16 @@
             android:textColor="#FFFFFF"
             android:textSize="18sp" />
 
+        <TextView
+            android:id="@+id/efootballText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:layout_marginBottom="24dp"
+            android:text="eFootball Readiness: —"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp" />
+
     </LinearLayout>
 
 </ScrollView>
