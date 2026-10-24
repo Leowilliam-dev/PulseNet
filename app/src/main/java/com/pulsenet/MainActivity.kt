@@ -23,6 +23,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var stabilityText: TextView
     private lateinit var gamingText: TextView
     private lateinit var streamingText: TextView
+    private lateinit var efootballText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,6 +39,7 @@ class MainActivity : AppCompatActivity() {
         stabilityText = findViewById(R.id.stabilityText)
         gamingText = findViewById(R.id.gamingText)
         streamingText = findViewById(R.id.streamingText)
+        efootballText = findViewById(R.id.efootballText)
 
         testButton.setOnClickListener {
             runNetworkTest()
@@ -56,6 +58,7 @@ class MainActivity : AppCompatActivity() {
         stabilityText.text = "Network Stability: testing..."
         gamingText.text = "Gaming Readiness: testing..."
         streamingText.text = "Streaming Readiness: waiting..."
+        efootballText.text = "eFootball Readiness: testing..."
 
         thread {
             try {
@@ -89,6 +92,9 @@ class MainActivity : AppCompatActivity() {
                 val gaming =
                     calculateGamingReadiness(ping, jitter, packetLoss)
 
+                val efootball =
+                    calculateEfootballReadiness(ping, jitter, packetLoss)
+
                 runOnUiThread {
                     pingText.text =
                         if (ping != null)
@@ -110,6 +116,9 @@ class MainActivity : AppCompatActivity() {
 
                     gamingText.text =
                         "Gaming Readiness: $gaming"
+
+                    efootballText.text =
+                        "eFootball Readiness: $efootball"
 
                     statusText.text = "Testing download speed..."
                     downloadText.text = "Download: testing..."
@@ -161,6 +170,37 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun calculateEfootballReadiness(
+        ping: Double?,
+        jitter: Double?,
+        packetLoss: Double
+    ): String {
+
+        if (ping == null || jitter == null) {
+            return "Unavailable"
+        }
+
+        return when {
+            packetLoss > 5.0 ||
+                jitter > 30.0 ||
+                ping > 220.0 ->
+                "Poor"
+
+            packetLoss > 2.0 ||
+                jitter > 20.0 ||
+                ping > 150.0 ->
+                "Fair"
+
+            packetLoss > 1.0 ||
+                jitter > 10.0 ||
+                ping > 80.0 ->
+                "Good"
+
+            else ->
+                "Excellent"
+        }
+    }
+
     private fun runDownloadTest(): Double? {
         var connection: HttpURLConnection? = null
 
@@ -183,14 +223,22 @@ class MainActivity : AppCompatActivity() {
 
                 while (true) {
                     val bytesRead = input.read(buffer)
-                    if (bytesRead == -1) break
+
+                    if (bytesRead == -1) {
+                        break
+                    }
+
                     totalBytes += bytesRead
                 }
 
                 val elapsedSeconds =
-                    (System.nanoTime() - startTime) / 1_000_000_000.0
+                    (System.nanoTime() - startTime) /
+                        1_000_000_000.0
 
-                if (elapsedSeconds <= 0.0 || totalBytes <= 0) {
+                if (
+                    elapsedSeconds <= 0.0 ||
+                    totalBytes <= 0
+                ) {
                     return null
                 }
 
@@ -210,9 +258,13 @@ class MainActivity : AppCompatActivity() {
         var connection: HttpURLConnection? = null
 
         return try {
-            val url = URL("https://speed.cloudflare.com/__up")
+            val url = URL(
+                "https://speed.cloudflare.com/__up"
+            )
 
-            connection = url.openConnection() as HttpURLConnection
+            connection =
+                url.openConnection() as HttpURLConnection
+
             connection.requestMethod = "POST"
             connection.doOutput = true
             connection.connectTimeout = 10000
@@ -225,27 +277,40 @@ class MainActivity : AppCompatActivity() {
             )
 
             val uploadSize = 5 * 1024 * 1024
-            connection.setFixedLengthStreamingMode(uploadSize)
+
+            connection.setFixedLengthStreamingMode(
+                uploadSize
+            )
 
             val buffer = ByteArray(64 * 1024)
+
             val startTime = System.nanoTime()
 
             connection.outputStream.use { output ->
                 var remaining = uploadSize
 
                 while (remaining > 0) {
-                    val amount = minOf(buffer.size, remaining)
-                    output.write(buffer, 0, amount)
+                    val amount =
+                        minOf(buffer.size, remaining)
+
+                    output.write(
+                        buffer,
+                        0,
+                        amount
+                    )
+
                     remaining -= amount
                 }
 
                 output.flush()
             }
 
-            val responseCode = connection.responseCode
+            val responseCode =
+                connection.responseCode
 
             val elapsedSeconds =
-                (System.nanoTime() - startTime) / 1_000_000_000.0
+                (System.nanoTime() - startTime) /
+                    1_000_000_000.0
 
             if (
                 responseCode !in 200..299 ||
@@ -286,65 +351,98 @@ class MainActivity : AppCompatActivity() {
             packetLoss > 5.0 ||
                 jitter > 40.0 ||
                 download < 3.0 ||
-                upload < 1.0 -> "Poor"
+                upload < 1.0 ->
+                "Poor"
 
             packetLoss > 2.0 ||
                 jitter > 25.0 ||
                 download < 8.0 ||
-                upload < 2.0 -> "Fair"
+                upload < 2.0 ->
+                "Fair"
 
             packetLoss > 1.0 ||
                 jitter > 15.0 ||
                 download < 25.0 ||
                 upload < 5.0 ||
-                ping > 150.0 -> "Good"
+                ping > 150.0 ->
+                "Good"
 
-            else -> "Excellent"
+            else ->
+                "Excellent"
         }
     }
 
-    private fun extractAveragePing(output: String): Double? {
+    private fun extractAveragePing(
+        output: String
+    ): Double? {
+
         val match = Regex(
             """=\s*([0-9.]+)/([0-9.]+)/([0-9.]+)/"""
         ).find(output)
 
-        return match?.groupValues?.get(2)?.toDoubleOrNull()
+        return match
+            ?.groupValues
+            ?.get(2)
+            ?.toDoubleOrNull()
     }
 
-    private fun extractPingTimes(output: String): List<Double> {
-        val times = mutableListOf<Double>()
+    private fun extractPingTimes(
+        output: String
+    ): List<Double> {
+
+        val times =
+            mutableListOf<Double>()
 
         val regex = Regex(
             """time[=<]([0-9.]+)\s*ms"""
         )
 
         regex.findAll(output).forEach {
-            it.groupValues[1].toDoubleOrNull()?.let { value ->
-                times.add(value)
-            }
+            it.groupValues[1]
+                .toDoubleOrNull()
+                ?.let { value ->
+                    times.add(value)
+                }
         }
 
         return times
     }
 
-    private fun calculatePacketLoss(output: String): Double {
+    private fun calculatePacketLoss(
+        output: String
+    ): Double {
+
         val match = Regex(
             """(\d+(?:\.\d+)?)%\s*packet loss"""
         ).find(output)
 
-        return match?.groupValues?.get(1)?.toDoubleOrNull() ?: 100.0
+        return match
+            ?.groupValues
+            ?.get(1)
+            ?.toDoubleOrNull()
+            ?: 100.0
     }
 
-    private fun calculateJitter(times: List<Double>): Double? {
-        if (times.size < 2) return null
+    private fun calculateJitter(
+        times: List<Double>
+    ): Double? {
+
+        if (times.size < 2) {
+            return null
+        }
 
         var totalDifference = 0.0
 
         for (i in 1 until times.size) {
-            totalDifference += abs(times[i] - times[i - 1])
+            totalDifference +=
+                abs(
+                    times[i] -
+                        times[i - 1]
+                )
         }
 
-        return totalDifference / (times.size - 1)
+        return totalDifference /
+            (times.size - 1)
     }
 
     private fun calculateStability(
@@ -353,15 +451,28 @@ class MainActivity : AppCompatActivity() {
         packetLoss: Double
     ): String {
 
-        if (ping == null || jitter == null) {
+        if (
+            ping == null ||
+            jitter == null
+        ) {
             return "Unavailable"
         }
 
         return when {
-            packetLoss > 5.0 || jitter > 30.0 -> "Poor"
-            packetLoss > 2.0 || jitter > 15.0 -> "Fair"
-            ping > 150.0 || jitter > 10.0 -> "Good"
-            else -> "Excellent"
+            packetLoss > 5.0 ||
+                jitter > 30.0 ->
+                "Poor"
+
+            packetLoss > 2.0 ||
+                jitter > 15.0 ->
+                "Fair"
+
+            ping > 150.0 ||
+                jitter > 10.0 ->
+                "Good"
+
+            else ->
+                "Excellent"
         }
     }
 
@@ -371,23 +482,30 @@ class MainActivity : AppCompatActivity() {
         packetLoss: Double
     ): String {
 
-        if (ping == null || jitter == null) {
+        if (
+            ping == null ||
+            jitter == null
+        ) {
             return "Unavailable"
         }
 
         return when {
             packetLoss > 5.0 ||
                 jitter > 30.0 ||
-                ping > 250.0 -> "Poor"
+                ping > 250.0 ->
+                "Poor"
 
             packetLoss > 2.0 ||
                 jitter > 15.0 ||
-                ping > 150.0 -> "Fair"
+                ping > 150.0 ->
+                "Fair"
 
             ping > 80.0 ||
-                jitter > 10.0 -> "Good"
+                jitter > 10.0 ->
+                "Good"
 
-            else -> "Excellent"
+            else ->
+                "Excellent"
         }
     }
 }
