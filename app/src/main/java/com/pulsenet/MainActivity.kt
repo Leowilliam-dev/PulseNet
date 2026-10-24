@@ -4,7 +4,11 @@ import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.content.Context
 import android.content.SharedPreferences
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RectF
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
@@ -24,6 +28,96 @@ import java.util.Date
 import java.util.Locale
 import kotlin.concurrent.thread
 import kotlin.math.abs
+import kotlin.math.sin
+
+class SignalWaveView @JvmOverloads constructor(
+    context: Context,
+    attrs: android.util.AttributeSet? = null,
+    defStyleAttr: Int = 0
+) : View(context, attrs, defStyleAttr) {
+
+    private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(120, 92, 245, 255)
+        style = Paint.Style.STROKE
+        strokeWidth = 3f
+    }
+
+    private val wavePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(230, 92, 245, 255)
+        style = Paint.Style.STROKE
+        strokeWidth = 4f
+        strokeCap = Paint.Cap.ROUND
+    }
+
+    private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(90, 18, 236, 255)
+        style = Paint.Style.STROKE
+        strokeWidth = 9f
+        strokeCap = Paint.Cap.ROUND
+    }
+
+    private val centerDotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.rgb(112, 249, 255)
+        style = Paint.Style.FILL
+    }
+
+    private val handler = Handler(Looper.getMainLooper())
+    private var phase = 0f
+    private val pulseRunnable = object : Runnable {
+        override fun run() {
+            phase += 0.18f
+            invalidate()
+            handler.postDelayed(this, 16L)
+        }
+    }
+
+    init {
+        isClickable = false
+        handler.post(pulseRunnable)
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        handler.removeCallbacks(pulseRunnable)
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+
+        val cx = width / 2f
+        val cy = height / 2f
+        val radius = minOf(width, height) * 0.34f
+
+        val ring = RectF(
+            cx - radius,
+            cy - radius,
+            cx + radius,
+            cy + radius
+        )
+
+        canvas.drawArc(ring, 200f, 140f, false, ringPaint)
+
+        val path = Path()
+        val points = 120
+        val amplitude = 12f + (sin(phase) + 1f) * 6f
+
+        var first = true
+        for (i in 0..points) {
+            val x = (i / points.toFloat()) * width
+            val y = cy + sin((i / 20f) + phase) * amplitude + sin((i / 9f) + phase * 1.7f) * 6f
+            if (first) {
+                path.moveTo(x, y)
+                first = false
+            } else {
+                path.lineTo(x, y)
+            }
+        }
+
+        canvas.drawPath(path, glowPaint)
+        canvas.drawPath(path, wavePaint)
+        canvas.drawCircle(cx, cy, 8f, centerDotPaint)
+    }
+}
 
 class MainActivity : AppCompatActivity() {
 
@@ -43,7 +137,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var streamingText: TextView
     private lateinit var videoCallText: TextView
     private lateinit var historyText: TextView
-    private lateinit var statusPulse: View
+    private lateinit var signalWaveView: SignalWaveView
 
     private lateinit var historyPreferences: SharedPreferences
 
@@ -73,12 +167,11 @@ class MainActivity : AppCompatActivity() {
         streamingText = findViewById(R.id.streamingText)
         videoCallText = findViewById(R.id.videoCallText)
         historyText = findViewById(R.id.historyText)
-        statusPulse = findViewById(R.id.statusPulse)
+        signalWaveView = findViewById(R.id.signalWaveView)
 
         networkTypeText.text = "Network Type: ${getNetworkType()}"
         loadTestHistory()
         animateEntrance()
-        animateSignalPulse()
 
         testButton.setOnClickListener {
             animatePress(testButton)
@@ -117,21 +210,15 @@ class MainActivity : AppCompatActivity() {
                 .setInterpolator(DecelerateInterpolator())
                 .start()
         }
-    }
 
-    private fun animateSignalPulse() {
-        val pulseOut = ObjectAnimator.ofFloat(statusPulse, View.SCALE_X, 1f, 1.45f, 1f)
-        val pulseOutY = ObjectAnimator.ofFloat(statusPulse, View.SCALE_Y, 1f, 1.45f, 1f)
-        val pulseAlpha = ObjectAnimator.ofFloat(statusPulse, View.ALPHA, 0.7f, 1f, 0.7f)
-
-        val set = AnimatorSet().apply {
-            playTogether(pulseOut, pulseOutY, pulseAlpha)
-            duration = 1800
-            interpolator = DecelerateInterpolator()
-        }
-
-        set.start()
-        uiHandler.postDelayed({ animateSignalPulse() }, 1800)
+        signalWaveView.alpha = 0f
+        signalWaveView.translationY = -8f
+        signalWaveView.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(500)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
     }
 
     private fun animatePress(view: View) {
