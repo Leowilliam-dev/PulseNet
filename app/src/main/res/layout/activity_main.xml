@@ -152,9 +152,10 @@
                 android:background="#1C2D3E" />
 
             <View
-                android:layout_width="92%"
+                android:layout_width="0dp"
                 android:layout_height="8dp"
                 android:layout_marginTop="-8dp"
+                android:layout_weight="92"
                 android:background="#4DD1FF" />
         </LinearLayout>
 
