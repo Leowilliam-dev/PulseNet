@@ -199,10 +199,18 @@ class MainActivity : AppCompatActivity() {
                         "Video Call Readiness: $videoCall"
 
                     healthScoreText.text =
-                        if (healthScore != null)
-                            "Network Health: $healthScore/100"
-                        else
+                        if (healthScore != null) {
+                            val healthStatus = when {
+                                healthScore >= 90 -> "Excellent"
+                                healthScore >= 75 -> "Good"
+                                healthScore >= 50 -> "Fair"
+                                else -> "Poor"
+                            }
+
+                            "Network Health: $healthScore/100\n$healthStatus"
+                        } else {
                             "Network Health: unavailable"
+                        }
 
                     statusText.text =
                         "Network test complete"
@@ -213,7 +221,8 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 runOnUiThread {
                     statusText.text = "Test error"
-                    healthScoreText.text = "Network Health: unavailable"
+                    healthScoreText.text =
+                        "Network Health: unavailable"
                     testButton.isEnabled = true
                 }
             }
@@ -408,6 +417,7 @@ class MainActivity : AppCompatActivity() {
             connection.connectTimeout = 10000
             connection.readTimeout = 20000
             connection.useCaches = false
+
             connection.setRequestProperty(
                 "Accept-Encoding",
                 "identity"
