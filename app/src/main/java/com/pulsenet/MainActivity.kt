@@ -22,10 +22,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var uploadText: TextView
     private lateinit var stabilityText: TextView
     private lateinit var gamingText: TextView
+    private lateinit var streamingText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setContentView(R.layout.activity_main)
 
         testButton = findViewById(R.id.testButton)
@@ -37,6 +37,7 @@ class MainActivity : AppCompatActivity() {
         uploadText = findViewById(R.id.uploadText)
         stabilityText = findViewById(R.id.stabilityText)
         gamingText = findViewById(R.id.gamingText)
+        streamingText = findViewById(R.id.streamingText)
 
         testButton.setOnClickListener {
             runNetworkTest()
@@ -54,6 +55,7 @@ class MainActivity : AppCompatActivity() {
         uploadText.text = "Upload: waiting..."
         stabilityText.text = "Network Stability: testing..."
         gamingText.text = "Gaming Readiness: testing..."
+        streamingText.text = "Streaming Readiness: waiting..."
 
         thread {
             try {
@@ -81,17 +83,11 @@ class MainActivity : AppCompatActivity() {
                 val packetLoss = calculatePacketLoss(result)
                 val jitter = calculateJitter(times)
 
-                val stability = calculateStability(
-                    ping,
-                    jitter,
-                    packetLoss
-                )
+                val stability =
+                    calculateStability(ping, jitter, packetLoss)
 
-                val gaming = calculateGamingReadiness(
-                    ping,
-                    jitter,
-                    packetLoss
-                )
+                val gaming =
+                    calculateGamingReadiness(ping, jitter, packetLoss)
 
                 runOnUiThread {
                     pingText.text =
@@ -134,12 +130,23 @@ class MainActivity : AppCompatActivity() {
 
                 val uploadSpeed = runUploadTest()
 
+                val streaming = calculateStreamingReadiness(
+                    ping,
+                    jitter,
+                    packetLoss,
+                    downloadSpeed,
+                    uploadSpeed
+                )
+
                 runOnUiThread {
                     uploadText.text =
                         if (uploadSpeed != null)
                             "Upload: %.2f Mbps".format(uploadSpeed)
                         else
                             "Upload: unavailable"
+
+                    streamingText.text =
+                        "Streaming Readiness: $streaming"
 
                     statusText.text = "Network test complete"
                     testButton.isEnabled = true
@@ -206,12 +213,12 @@ class MainActivity : AppCompatActivity() {
             val url = URL("https://speed.cloudflare.com/__up")
 
             connection = url.openConnection() as HttpURLConnection
-
             connection.requestMethod = "POST"
             connection.doOutput = true
             connection.connectTimeout = 10000
             connection.readTimeout = 20000
             connection.useCaches = false
+
             connection.setRequestProperty(
                 "Content-Type",
                 "application/octet-stream"
@@ -221,7 +228,6 @@ class MainActivity : AppCompatActivity() {
             connection.setFixedLengthStreamingMode(uploadSize)
 
             val buffer = ByteArray(64 * 1024)
-
             val startTime = System.nanoTime()
 
             connection.outputStream.use { output ->
@@ -256,6 +262,44 @@ class MainActivity : AppCompatActivity() {
             null
         } finally {
             connection?.disconnect()
+        }
+    }
+
+    private fun calculateStreamingReadiness(
+        ping: Double?,
+        jitter: Double?,
+        packetLoss: Double,
+        download: Double?,
+        upload: Double?
+    ): String {
+
+        if (
+            ping == null ||
+            jitter == null ||
+            download == null ||
+            upload == null
+        ) {
+            return "Unavailable"
+        }
+
+        return when {
+            packetLoss > 5.0 ||
+                jitter > 40.0 ||
+                download < 3.0 ||
+                upload < 1.0 -> "Poor"
+
+            packetLoss > 2.0 ||
+                jitter > 25.0 ||
+                download < 8.0 ||
+                upload < 2.0 -> "Fair"
+
+            packetLoss > 1.0 ||
+                jitter > 15.0 ||
+                download < 25.0 ||
+                upload < 5.0 ||
+                ping > 150.0 -> "Good"
+
+            else -> "Excellent"
         }
     }
 
